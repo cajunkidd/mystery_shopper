@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import { useAuth, type Role } from "./auth";
@@ -13,16 +14,25 @@ import Training from "./pages/Training";
 import HeatmapPage from "./pages/Heatmap";
 import Settings from "./pages/Settings";
 import District from "./pages/District";
-import Rubrics from "./pages/admin/Rubrics";
-import RubricEditor from "./pages/admin/RubricEditor";
-import Users from "./pages/admin/Users";
-import AuditLog from "./pages/admin/AuditLog";
-import CsvImport from "./pages/admin/CsvImport";
-import GamificationAdmin from "./pages/admin/Gamification";
-import LeagueStandings from "./pages/admin/LeagueStandings";
-import { CalibrationList, CalibrationDetail } from "./pages/admin/Calibration";
-import TrainingModules from "./pages/admin/TrainingModules";
-import Config from "./pages/admin/Config";
+
+// Admin and compare pages are lazy-loaded — most users never visit them, and
+// this keeps the initial bundle a chunk smaller.
+const Rubrics = lazy(() => import("./pages/admin/Rubrics"));
+const RubricEditor = lazy(() => import("./pages/admin/RubricEditor"));
+const Users = lazy(() => import("./pages/admin/Users"));
+const AuditLog = lazy(() => import("./pages/admin/AuditLog"));
+const CsvImport = lazy(() => import("./pages/admin/CsvImport"));
+const GamificationAdmin = lazy(() => import("./pages/admin/Gamification"));
+const LeagueStandings = lazy(() => import("./pages/admin/LeagueStandings"));
+const CalibrationList = lazy(() =>
+  import("./pages/admin/Calibration").then((m) => ({ default: m.CalibrationList })),
+);
+const CalibrationDetail = lazy(() =>
+  import("./pages/admin/Calibration").then((m) => ({ default: m.CalibrationDetail })),
+);
+const TrainingModules = lazy(() => import("./pages/admin/TrainingModules"));
+const Config = lazy(() => import("./pages/admin/Config"));
+const CompareShops = lazy(() => import("./pages/CompareShops"));
 
 function Require({ roles, children }: { roles?: Role[]; children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -30,6 +40,10 @@ function Require({ roles, children }: { roles?: Role[]; children: JSX.Element })
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
+}
+
+function Lazy({ children }: { children: JSX.Element }) {
+  return <Suspense fallback={<div className="p-8 text-slate-500">Loading…</div>}>{children}</Suspense>;
 }
 
 export default function App() {
@@ -53,6 +67,7 @@ export default function App() {
             </Require>
           }
         />
+        <Route path="shops/compare" element={<Lazy><CompareShops /></Lazy>} />
         <Route path="shops/:id" element={<ShopDetail />} />
         <Route path="action-plans" element={<ActionPlans />} />
         <Route path="appeals" element={<Appeals />} />
@@ -71,7 +86,7 @@ export default function App() {
           path="admin/rubrics"
           element={
             <Require roles={["admin"]}>
-              <Rubrics />
+              <Lazy><Rubrics /></Lazy>
             </Require>
           }
         />
@@ -79,7 +94,7 @@ export default function App() {
           path="admin/rubrics/:id"
           element={
             <Require roles={["admin"]}>
-              <RubricEditor />
+              <Lazy><RubricEditor /></Lazy>
             </Require>
           }
         />
@@ -87,7 +102,7 @@ export default function App() {
           path="admin/users"
           element={
             <Require roles={["admin"]}>
-              <Users />
+              <Lazy><Users /></Lazy>
             </Require>
           }
         />
@@ -95,7 +110,7 @@ export default function App() {
           path="admin/audit-log"
           element={
             <Require roles={["admin"]}>
-              <AuditLog />
+              <Lazy><AuditLog /></Lazy>
             </Require>
           }
         />
@@ -103,7 +118,7 @@ export default function App() {
           path="admin/import"
           element={
             <Require roles={["admin"]}>
-              <CsvImport />
+              <Lazy><CsvImport /></Lazy>
             </Require>
           }
         />
@@ -111,7 +126,7 @@ export default function App() {
           path="admin/gamification"
           element={
             <Require roles={["admin"]}>
-              <GamificationAdmin />
+              <Lazy><GamificationAdmin /></Lazy>
             </Require>
           }
         />
@@ -119,7 +134,7 @@ export default function App() {
           path="admin/leagues/:id"
           element={
             <Require roles={["admin", "district_manager"]}>
-              <LeagueStandings />
+              <Lazy><LeagueStandings /></Lazy>
             </Require>
           }
         />
@@ -127,7 +142,7 @@ export default function App() {
           path="admin/training"
           element={
             <Require roles={["admin"]}>
-              <TrainingModules />
+              <Lazy><TrainingModules /></Lazy>
             </Require>
           }
         />
@@ -135,7 +150,7 @@ export default function App() {
           path="admin/config"
           element={
             <Require roles={["admin"]}>
-              <Config />
+              <Lazy><Config /></Lazy>
             </Require>
           }
         />
@@ -143,7 +158,7 @@ export default function App() {
           path="admin/calibration"
           element={
             <Require roles={["admin", "district_manager"]}>
-              <CalibrationList />
+              <Lazy><CalibrationList /></Lazy>
             </Require>
           }
         />
@@ -151,7 +166,7 @@ export default function App() {
           path="admin/calibration/:id"
           element={
             <Require roles={["admin", "district_manager", "store_manager"]}>
-              <CalibrationDetail />
+              <Lazy><CalibrationDetail /></Lazy>
             </Require>
           }
         />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { api, downloadPdf } from "../api";
 import { useAuth } from "../auth";
 import { AudioReview, AudioUpload } from "../components/AudioReview";
@@ -113,6 +113,7 @@ export default function ShopDetail() {
             <div className="text-xs text-slate-500">{shop.totalScore.toFixed(1)} / {shop.totalMax.toFixed(0)}</div>
           </div>
           <button className="btn-secondary" onClick={() => downloadPdf(shop.id)}>Export PDF</button>
+          {shop.evaluatedEmployee && <ComparePicker shop={shop} />}
         </div>
       </div>
 
@@ -283,6 +284,48 @@ export default function ShopDetail() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ComparePicker({ shop }: { shop: Shop }) {
+  const nav = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<{ id: string; shopDate: string; type: string }[]>([]);
+  const [other, setOther] = useState("");
+
+  useEffect(() => {
+    if (!open || !shop.evaluatedEmployeeId) return;
+    api<{ shops: { id: string; shopDate: string; type: string }[] }>(
+      `/shops?evaluatedEmployeeId=${shop.evaluatedEmployeeId}&limit=20`,
+    ).then((r) => setOptions(r.shops.filter((s) => s.id !== shop.id)));
+  }, [open, shop.id, shop.evaluatedEmployeeId]);
+
+  if (!open) {
+    return (
+      <button className="btn-secondary text-sm" onClick={() => setOpen(true)}>
+        Compare with…
+      </button>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1">
+      <select className="input text-sm py-1" value={other} onChange={(e) => setOther(e.target.value)}>
+        <option value="">— pick a shop —</option>
+        {options.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.shopDate.slice(0, 10)} · {s.type}
+          </option>
+        ))}
+      </select>
+      <button
+        className="btn-primary text-sm"
+        disabled={!other}
+        onClick={() => nav(`/shops/compare?a=${shop.id}&b=${other}`)}
+      >
+        Go
+      </button>
+      <button className="text-xs text-slate-500" onClick={() => setOpen(false)}>cancel</button>
     </div>
   );
 }

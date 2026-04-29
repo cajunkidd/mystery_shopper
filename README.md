@@ -94,6 +94,11 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Compare two shops** — `/shops/compare?a=X&b=Y` puts two shops side-by-side: header tiles, per-section delta table, per-question score deltas. Refuses to render when the two shops use different rubrics (the comparison would be apples-to-oranges). "Compare with…" picker on shop detail surfaces this when an employee has prior shops to pick from.
+- **Code-split admin pages** — admin routes + the new compare page are lazy-loaded via `React.lazy` + `Suspense`. Initial JS bundle dropped from **283 kB → 240 kB** (gzip 79 → 71). Each admin page is its own ~2–10 kB chunk.
+
+## Earlier additions
+
 - **League standings UI** — `/admin/leagues/:id` surfaces top 3 by default with the §10 rationale rendered inline. "Reveal full standings" button is admin-only and labeled as "internal calibration only — never share outside leadership," so the punitive-display anti-pattern is hard to fall into accidentally.
 - **Action-plan verification with notes** — when a manager clicks Verify, an inline form appears for optional `verificationNotes` before the confirmation. Backend already accepted them; UI now wires them through.
 - **General comment thread on shops** — shop detail gained a Discussion panel listing non-time-anchored comments and a textarea to add new ones. Audio-anchored comments still render in the AudioReview player as before; the new section lists everything else (managers + employees can both contribute).
