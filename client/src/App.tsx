@@ -14,6 +14,7 @@ import Training from "./pages/Training";
 import HeatmapPage from "./pages/Heatmap";
 import Settings from "./pages/Settings";
 import District from "./pages/District";
+import NotFound from "./pages/NotFound";
 
 // Admin and compare pages are lazy-loaded — most users never visit them, and
 // this keeps the initial bundle a chunk smaller.
@@ -178,6 +179,7 @@ export default function App() {
             </Require>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );

@@ -89,10 +89,53 @@ export function buildApp(): express.Express {
   app.use("/api/v1", trainingRoutes);
   app.use("/api/v1/admin", adminRoutes);
 
+  app.get("/api/v1/_routes", (_req, res) => {
+    res.json({ routes: collectRoutes(app) });
+  });
+
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
     res.status(500).json({ error: "server_error" });
   });
 
   return app;
+}
+
+interface RouteDescriptor {
+  method: string;
+  path: string;
+}
+
+// Walk Express's router stack and emit { method, path } for every registered
+// route. Used by GET /_routes for cheap auto-documentation.
+export function collectRoutes(app: express.Express): RouteDescriptor[] {
+  const out: RouteDescriptor[] = [];
+  // Express's internals; the shape is stable but typing is loose.
+  type Layer = {
+    route?: { path: string; methods: Record<string, boolean> };
+    name?: string;
+    handle?: { stack?: Layer[] };
+    regexp?: RegExp;
+  };
+  function visit(layers: Layer[] | undefined, prefix: string): void {
+    for (const layer of layers ?? []) {
+      if (layer.route) {
+        const methods = Object.entries(layer.route.methods)
+          .filter(([, on]) => on)
+          .map(([m]) => m.toUpperCase());
+        for (const method of methods) {
+          out.push({ method, path: prefix + layer.route.path });
+        }
+      } else if (layer.name === "router" && layer.handle?.stack) {
+        const sub = (layer.regexp?.source ?? "").replace(/\\\//g, "/");
+        const m = sub.match(/^\^(.+?)\\\/\?\(\?=\\\/\|\$\)/);
+        const mountedAt = m ? m[1].replace(/\\\//g, "/").replace(/\\/g, "") : "";
+        visit(layer.handle.stack, prefix + mountedAt);
+      }
+    }
+  }
+  visit((app as unknown as { _router?: { stack?: Layer[] } })._router?.stack, "");
+  return out
+    .filter((r) => r.path.startsWith("/api"))
+    .sort((a, b) => a.path.localeCompare(b.path));
 }

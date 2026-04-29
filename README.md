@@ -94,6 +94,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **404 page + global error boundary** — unknown routes render a friendly Not Found page instead of breaking out of the layout. A React `ErrorBoundary` wraps the whole app: a thrown render error shows a recovery card with Reload / Try-again instead of a blank screen.
+- **`GET /api/v1/_routes`** — walks Express's router stack and emits `{ method, path }` for every registered route. Cheap auto-documentation for engineers who don't want to read the source.
+- **Frontend test setup** — vitest with jsdom is wired up; 11 client tests cover the extracted CSV row parser and the manager review-queue aging helper. Reusable utilities moved into `client/src/lib/` so the same code is exercised by both unit tests and the dashboard / import widgets. **82 tests total** (71 server, 11 client).
+
+## Earlier additions
+
 - **Compare two shops** — `/shops/compare?a=X&b=Y` puts two shops side-by-side: header tiles, per-section delta table, per-question score deltas. Refuses to render when the two shops use different rubrics (the comparison would be apples-to-oranges). "Compare with…" picker on shop detail surfaces this when an employee has prior shops to pick from.
 - **Code-split admin pages** — admin routes + the new compare page are lazy-loaded via `React.lazy` + `Suspense`. Initial JS bundle dropped from **283 kB → 240 kB** (gzip 79 → 71). Each admin page is its own ~2–10 kB chunk.
 

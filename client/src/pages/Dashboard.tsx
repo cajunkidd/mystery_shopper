@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { ageBadge } from "../lib/aging";
 
 interface EmployeeDashboard {
   latest: { id: string; shopDate: string; percentage: number; type: string } | null;
@@ -29,13 +30,6 @@ interface BulkSummary {
   error?: string;
 }
 
-function ageBadge(submittedAt: string | null): { label: string; cls: string } {
-  if (!submittedAt) return { label: "draft", cls: "bg-slate-100 text-slate-600" };
-  const days = Math.floor((Date.now() - new Date(submittedAt).getTime()) / 86_400_000);
-  if (days >= 5) return { label: `${days}d waiting`, cls: "bg-rose-100 text-rose-800" };
-  if (days >= 2) return { label: `${days}d waiting`, cls: "bg-amber-100 text-amber-800" };
-  return { label: days === 0 ? "today" : `${days}d`, cls: "bg-slate-100 text-slate-700" };
-}
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (

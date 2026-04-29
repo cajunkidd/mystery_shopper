@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
+import { parseCsvLine } from "../../lib/csv";
 
 interface Question { id: string; text: string }
 interface Section { id: string; name: string; questions: Question[] }
@@ -288,32 +289,3 @@ function Mapping({ label, value, headers, onChange }: {
   );
 }
 
-function parseCsvLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (inQuotes) {
-      if (c === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else if (c === '"') {
-        inQuotes = false;
-      } else {
-        cur += c;
-      }
-    } else {
-      if (c === ",") {
-        out.push(cur);
-        cur = "";
-      } else if (c === '"') {
-        inQuotes = true;
-      } else {
-        cur += c;
-      }
-    }
-  }
-  out.push(cur);
-  return out;
-}
