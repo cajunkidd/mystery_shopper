@@ -1,0 +1,626 @@
+openapi: 3.1.0
+info:
+  title: Stine Mystery Shop API
+  version: 0.1.0
+  description: |
+    Internal API for the Stine Mystery Shop & Caller Performance Platform.
+
+    This is a focused subset covering the core lifecycle (auth → shop entry →
+    manager review → action plans → appeals) plus the user-facing dashboard +
+    notifications. Admin and gamification endpoints are catalogued at
+    `GET /api/v1/_routes` instead of duplicated here — that listing is
+    auto-generated from Express's router stack and stays in sync with code.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+tags:
+  - { name: auth, description: "Login + current-user lookup" }
+  - { name: me, description: "Self-serve preferences, permissions, data export" }
+  - { name: shops, description: "Shop entry, retrieval, attachments, exports" }
+  - { name: reviews, description: "Manager review workflow" }
+  - { name: action-plans, description: "Coaching action plans" }
+  - { name: appeals, description: "Employee appeals (§6.4)" }
+  - { name: dashboards, description: "Aggregated views per role" }
+  - { name: notifications, description: "In-app notifications" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        details: {}
+    Role:
+      type: string
+      enum: [employee, store_manager, district_manager, admin]
+    RubricType:
+      type: string
+      enum: [visit, call, web_inquiry, social_inquiry]
+    ShopStatus:
+      type: string
+      enum: [draft, submitted, under_review, action_assigned, closed, appealed]
+    ActionPlanStatus:
+      type: string
+      enum: [open, acknowledged, in_progress, completed, verified, overdue]
+    AppealStatus:
+      type: string
+      enum: [open, under_review, approved, partially_approved, denied]
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        role: { $ref: "#/components/schemas/Role" }
+        primaryLocationId: { type: string, format: uuid, nullable: true }
+        districtIds:
+          type: array
+          items: { type: string, format: uuid }
+    LoginBody:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1 }
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token: { type: string }
+        user: { $ref: "#/components/schemas/User" }
+    Shop:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        rubricId: { type: string, format: uuid }
+        rubricVersion: { type: integer }
+        type: { $ref: "#/components/schemas/RubricType" }
+        locationId: { type: string, format: uuid }
+        shopDate: { type: string, format: date-time }
+        evaluatedEmployeeId: { type: string, format: uuid, nullable: true }
+        shopperName: { type: string, nullable: true }
+        shopperExternalRef: { type: string, nullable: true }
+        narrative: { type: string, nullable: true }
+        status: { $ref: "#/components/schemas/ShopStatus" }
+        totalScore: { type: number }
+        totalMax: { type: number }
+        percentage: { type: number }
+        audioFileId: { type: string, format: uuid, nullable: true }
+    ShopAnswerInput:
+      type: object
+      required: [questionId, answerValue]
+      properties:
+        questionId: { type: string, format: uuid }
+        answerValue: {}
+        comment: { type: string, nullable: true }
+    CreateShopBody:
+      type: object
+      required: [rubricId, type, locationId, shopDate, answers]
+      properties:
+        rubricId: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/RubricType" }
+        locationId: { type: string, format: uuid }
+        shopDate: { type: string, format: date-time }
+        shopTime: { type: string, nullable: true }
+        evaluatedEmployeeId: { type: string, format: uuid, nullable: true }
+        shopperName: { type: string }
+        shopperExternalRef: { type: string }
+        narrative: { type: string }
+        answers:
+          type: array
+          items: { $ref: "#/components/schemas/ShopAnswerInput" }
+        submit:
+          type: boolean
+          description: When true, status becomes submitted/under_review and routes to a manager.
+    Review:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        shopId: { type: string, format: uuid }
+        reviewerId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [pending, in_progress, completed]
+        managerSummary: { type: string, nullable: true }
+        managerScoreAdjustment: { type: number, nullable: true }
+        managerScoreJustification: { type: string, nullable: true }
+        bonusPointsAwarded: { type: integer, nullable: true }
+        bonusJustification: { type: string, nullable: true }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+    ActionPlan:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        shopId: { type: string, format: uuid }
+        assignedToId: { type: string, format: uuid }
+        assignedById: { type: string, format: uuid }
+        category: { type: string }
+        description: { type: string }
+        dueDate: { type: string, format: date-time }
+        status: { $ref: "#/components/schemas/ActionPlanStatus" }
+    Appeal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        shopId: { type: string, format: uuid }
+        filedById: { type: string, format: uuid }
+        reason: { type: string }
+        requestedChange: { type: string, nullable: true }
+        status: { $ref: "#/components/schemas/AppealStatus" }
+        resolutionNotes: { type: string, nullable: true }
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        kind: { type: string }
+        title: { type: string }
+        body: { type: string, nullable: true }
+        link: { type: string, nullable: true }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+  responses:
+    Unauthorized:
+      description: Missing, invalid, or expired token
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Authenticated, but role can't perform this action (§9 matrix)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found or not visible to caller
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    BadRequest:
+      description: Body failed Zod validation; details has the per-field errors
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+paths:
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Exchange email + password for a JWT (7-day expiry)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginBody" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LoginResponse" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Stateless — client just discards its token
+      responses:
+        "200":
+          description: OK
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Current authenticated user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/preferences:
+    get:
+      tags: [me]
+      summary: Notification channel toggles
+      responses:
+        "200":
+          description: OK
+    patch:
+      tags: [me]
+      summary: Update notification channel toggles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                notifyByEmail: { type: boolean }
+                notifyBySms: { type: boolean }
+      responses:
+        "200":
+          description: OK
+  /me/permissions:
+    get:
+      tags: [me]
+      summary: §9 capabilities for the current role (14 booleans)
+      responses:
+        "200":
+          description: OK
+  /me/export:
+    get:
+      tags: [me]
+      summary: §11 self-serve data export
+      description: Returns a JSON Content-Disposition attachment with the user's full data.
+      responses:
+        "200":
+          description: JSON download
+
+  /shops:
+    get:
+      tags: [shops]
+      summary: List shops (filtered by role + query)
+      parameters:
+        - { name: locationId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/ShopStatus" } }
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/RubricType" } }
+        - { name: evaluatedEmployeeId, in: query, schema: { type: string, format: uuid } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: q, in: query, schema: { type: string }, description: "Free-text contains-match across employee name, shopper name, agency ref" }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 500 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shops:
+                    type: array
+                    items: { $ref: "#/components/schemas/Shop" }
+    post:
+      tags: [shops]
+      summary: Create a shop (manual entry)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateShopBody" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /shops/{id}:
+    get:
+      tags: [shops]
+      summary: Shop detail with rubric, answers, comments, action plans, appeals
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /shops/{id}/submit:
+    post:
+      tags: [shops]
+      summary: Move a draft shop to under_review
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: OK }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Not in draft state
+  /shops/{id}/pdf:
+    get:
+      tags: [shops]
+      summary: Branded per-shop PDF
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: PDF download
+          content:
+            application/pdf: {}
+  /shops/{id}/summary:
+    post:
+      tags: [shops]
+      summary: AI summary + sentiment (manager+ only)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      summary: { type: string }
+                      strengths: { type: array, items: { type: string } }
+                      improvements: { type: array, items: { type: string } }
+                      sentiment: { type: string, enum: [positive, neutral, negative] }
+        "503":
+          description: ANTHROPIC_API_KEY not set
+  /shops/{id}/review:
+    post:
+      tags: [reviews]
+      summary: Open or claim a review
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  review: { $ref: "#/components/schemas/Review" }
+  /shops/{id}/action-plans:
+    post:
+      tags: [action-plans]
+      summary: Create an action plan tied to this shop
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignedToId, category, description, dueDate]
+              properties:
+                assignedToId: { type: string, format: uuid }
+                reviewId: { type: string, format: uuid }
+                category: { type: string }
+                description: { type: string }
+                dueDate: { type: string, format: date-time }
+      responses:
+        "201":
+          description: Created
+  /shops/{id}/appeals:
+    post:
+      tags: [appeals]
+      summary: Employee files an appeal on their own shop
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1 }
+                requestedChange: { type: string }
+      responses:
+        "201":
+          description: Created
+
+  /reviews/{id}:
+    patch:
+      tags: [reviews]
+      summary: Update review (summary, score adjustment, bonus)
+      description: |
+        `managerScoreAdjustment` requires `managerScoreJustification` to be set
+        in the same call (server returns 400 otherwise — every adjustment must
+        carry a written reason per §11).
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                managerSummary: { type: string }
+                managerScoreAdjustment: { type: number }
+                managerScoreJustification: { type: string }
+                bonusPointsAwarded: { type: integer, minimum: 0, maximum: 25 }
+                bonusJustification: { type: string }
+      responses:
+        "200": { description: OK }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /reviews/{id}/complete:
+    post:
+      tags: [reviews]
+      summary: Mark review complete; awards points + evaluates badges + auto-assigns training
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  breakdown:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sourceType: { type: string }
+                        points: { type: integer }
+                        reason: { type: string }
+                  earnedBadges:
+                    type: array
+                    items: { type: string }
+
+  /action-plans:
+    get:
+      tags: [action-plans]
+      summary: List action plans
+      parameters:
+        - { name: scope, in: query, schema: { type: string, enum: [mine, assigned-by-me] } }
+      responses:
+        "200": { description: OK }
+  /action-plans/{id}/acknowledge:
+    post:
+      tags: [action-plans]
+      summary: Employee acknowledges
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /action-plans/{id}/complete:
+    post:
+      tags: [action-plans]
+      summary: Employee marks complete
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /action-plans/{id}/verify:
+    post:
+      tags: [action-plans]
+      summary: Manager verifies (with optional verificationNotes)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /action-plans/bulk-verify:
+    post:
+      tags: [action-plans]
+      summary: Verify up to 100 completed plans at once
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string, format: uuid }
+                  minItems: 1
+                  maxItems: 100
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  verified: { type: integer }
+  /action-plans/bulk-reassign:
+    post:
+      tags: [action-plans]
+      summary: Reassign up to 100 plans to a different employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids, toUserId]
+              properties:
+                ids:
+                  type: array
+                  items: { type: string, format: uuid }
+                  minItems: 1
+                  maxItems: 100
+                toUserId: { type: string, format: uuid }
+      responses:
+        "200": { description: OK }
+
+  /appeals:
+    get:
+      tags: [appeals]
+      summary: List appeals (filtered by role + scope)
+      parameters:
+        - { name: scope, in: query, schema: { type: string, enum: [open] } }
+      responses: { "200": { description: OK } }
+  /appeals/{id}/resolve:
+    post:
+      tags: [appeals]
+      summary: Resolve an appeal (audited)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, resolutionNotes]
+              properties:
+                status:
+                  type: string
+                  enum: [approved, partially_approved, denied]
+                resolutionNotes: { type: string, minLength: 1 }
+                scoreAdjustmentApplied: { type: number }
+      responses: { "200": { description: OK } }
+
+  /dashboards/me:
+    get:
+      tags: [dashboards]
+      summary: Employee dashboard (personal best, trend, latest, plans)
+      responses: { "200": { description: OK } }
+  /dashboards/location/{id}:
+    get:
+      tags: [dashboards]
+      summary: Store dashboard (queue, recent, avg)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /dashboards/heatmap:
+    get:
+      tags: [dashboards]
+      summary: Locations × rubric sections heatmap
+      parameters:
+        - { name: type, in: query, schema: { $ref: "#/components/schemas/RubricType" } }
+      responses: { "200": { description: OK } }
+
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: Recent notifications + unread count
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items: { $ref: "#/components/schemas/Notification" }
+                  unread: { type: integer }
+  /notifications/{id}/read:
+    post:
+      tags: [notifications]
+      summary: Mark a notification read
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      summary: Mark all of the current user's notifications read
+      responses: { "200": { description: OK } }

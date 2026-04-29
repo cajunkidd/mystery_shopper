@@ -245,6 +245,29 @@ export function buildApp(): express.Express {
     res.json(BUILD_VERSION);
   });
 
+  // OpenAPI spec — read once at startup. Served as YAML so Swagger / Redoc /
+  // openapi-typescript can ingest directly. Falls through quietly if the file
+  // isn't shipped (e.g. a partial Docker image).
+  const openapiPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "openapi.yaml");
+  const openapiAlt = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "openapi.yaml");
+  const openapiYaml = (() => {
+    for (const p of [openapiPath, openapiAlt]) {
+      try {
+        return fs.readFileSync(p, "utf8");
+      } catch {
+        /* try next */
+      }
+    }
+    return null;
+  })();
+  if (openapiYaml) {
+    app.get("/api/v1/openapi.yaml", (_req, res) => {
+      res.setHeader("Content-Type", "application/yaml");
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.send(openapiYaml);
+    });
+  }
+
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error(err);
     res.status(500).json({ error: "server_error" });

@@ -20,6 +20,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+COPY openapi.yaml ./openapi.yaml
 EXPOSE 4000
 # Apply pending migrations on boot — fine for a single instance; with multiple
 # replicas you'd run migrations as a separate init step instead.

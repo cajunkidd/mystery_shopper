@@ -111,9 +111,17 @@ export default function AdminOverview() {
               )}
             </li>
           </ul>
-          <button className="btn-secondary text-xs mt-3" disabled={running} onClick={runJobsNow}>
-            {running ? "Running…" : "Run scheduler now"}
-          </button>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button className="btn-secondary text-xs" disabled={running} onClick={runJobsNow}>
+              {running ? "Running…" : "Run scheduler now"}
+            </button>
+            <a className="btn-secondary text-xs" href="/api/v1/openapi.yaml" target="_blank" rel="noreferrer">
+              OpenAPI spec ↗
+            </a>
+            <a className="btn-secondary text-xs" href="/api/v1/_routes" target="_blank" rel="noreferrer">
+              Route listing ↗
+            </a>
+          </div>
           {lastJobResult != null && (
             <pre className="text-xs mt-2 bg-slate-50 p-2 rounded overflow-auto">{JSON.stringify(lastJobResult, null, 2)}</pre>
           )}
