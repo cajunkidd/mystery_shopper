@@ -1,0 +1,342 @@
+// Stine Mystery Shop & Caller Performance Platform
+// Schema follows §4 of STINE_MYSTERY_SHOP_APP_SPEC.md (Phase 1 + skeleton for later phases).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  employee
+  store_manager
+  district_manager
+  admin
+}
+
+enum RubricType {
+  visit
+  call
+  web_inquiry
+  social_inquiry
+}
+
+enum RubricStatus {
+  draft
+  active
+  retired
+}
+
+enum QuestionType {
+  yes_no
+  scale_1_5
+  multi_choice
+  free_text
+  photo_required
+  audio_required
+}
+
+enum ShopStatus {
+  draft
+  submitted
+  under_review
+  action_assigned
+  closed
+  appealed
+}
+
+enum ShopSource {
+  manual_entry
+  agency_import
+  internal_shop
+}
+
+enum ReviewStatus {
+  pending
+  in_progress
+  completed
+}
+
+enum ActionPlanStatus {
+  open
+  acknowledged
+  in_progress
+  completed
+  verified
+  overdue
+}
+
+enum AppealStatus {
+  open
+  under_review
+  approved
+  partially_approved
+  denied
+}
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String   @unique
+  passwordHash       String
+  fullName           String
+  role               Role
+  primaryLocationId  String?
+  primaryLocation    Location? @relation("UserPrimaryLocation", fields: [primaryLocationId], references: [id])
+  districtIds        String[] @default([])
+  hireDate           DateTime?
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  shopsCreated       Shop[]   @relation("ShopCreatedBy")
+  shopsEvaluated     Shop[]   @relation("ShopEvaluatedEmployee")
+  reviews            Review[]
+  actionPlansAssigned ActionPlan[] @relation("ActionPlanAssignedTo")
+  actionPlansCreated  ActionPlan[] @relation("ActionPlanAssignedBy")
+  appealsFiled       Appeal[] @relation("AppealFiledBy")
+  appealsResolved    Appeal[] @relation("AppealResolver")
+  comments           Comment[]
+  pointsLedger       PointsLedger[]
+  badges             UserBadge[]
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  district  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  users     User[]   @relation("UserPrimaryLocation")
+  shops     Shop[]
+}
+
+model Rubric {
+  id            String       @id @default(uuid())
+  name          String
+  type          RubricType
+  version       Int          @default(1)
+  status        RubricStatus @default(draft)
+  totalMaxScore Float        @default(0)
+  createdById   String?
+  createdAt     DateTime     @default(now())
+  retiredAt     DateTime?
+
+  sections      RubricSection[]
+  shops         Shop[]
+}
+
+model RubricSection {
+  id           String   @id @default(uuid())
+  rubricId     String
+  rubric       Rubric   @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+  name         String
+  displayOrder Int
+  weight       Float    @default(1)
+  maxScore     Float    @default(0)
+
+  questions    RubricQuestion[]
+}
+
+model RubricQuestion {
+  id              String       @id @default(uuid())
+  sectionId       String
+  section         RubricSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  text            String
+  questionType    QuestionType
+  weight          Float        @default(1)
+  maxScore        Float        @default(1)
+  options         Json?
+  conditionalLogic Json?
+  required        Boolean      @default(true)
+  displayOrder    Int
+
+  answers         ShopAnswer[]
+}
+
+model Shop {
+  id                  String     @id @default(uuid())
+  rubricId            String
+  rubric              Rubric     @relation(fields: [rubricId], references: [id])
+  rubricVersion       Int
+  type                RubricType
+  locationId          String
+  location            Location   @relation(fields: [locationId], references: [id])
+  shopDate            DateTime
+  shopTime            String?
+  evaluatedEmployeeId String?
+  evaluatedEmployee   User?      @relation("ShopEvaluatedEmployee", fields: [evaluatedEmployeeId], references: [id])
+  shopperName         String?
+  shopperExternalRef  String?
+  status              ShopStatus @default(draft)
+  totalScore          Float      @default(0)
+  totalMax            Float      @default(0)
+  percentage          Float      @default(0)
+  narrative           String?
+  source              ShopSource @default(manual_entry)
+  createdById         String
+  createdBy           User       @relation("ShopCreatedBy", fields: [createdById], references: [id])
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  submittedAt         DateTime?
+  closedAt            DateTime?
+
+  answers             ShopAnswer[]
+  review              Review?
+  actionPlans         ActionPlan[]
+  appeals             Appeal[]
+  comments            Comment[]
+}
+
+model ShopAnswer {
+  id           String   @id @default(uuid())
+  shopId       String
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     RubricQuestion @relation(fields: [questionId], references: [id])
+  answerValue  Json
+  scoreAwarded Float    @default(0)
+  comment      String?
+}
+
+model Review {
+  id                       String       @id @default(uuid())
+  shopId                   String       @unique
+  shop                     Shop         @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  reviewerId               String
+  reviewer                 User         @relation(fields: [reviewerId], references: [id])
+  status                   ReviewStatus @default(pending)
+  managerSummary           String?
+  managerScoreAdjustment   Float?
+  managerScoreJustification String?
+  bonusPointsAwarded       Int?
+  bonusJustification       String?
+  reviewedAt               DateTime?
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  actionPlans              ActionPlan[]
+}
+
+model ActionPlan {
+  id                String           @id @default(uuid())
+  shopId            String
+  shop              Shop             @relation(fields: [shopId], references: [id])
+  reviewId          String?
+  review            Review?          @relation(fields: [reviewId], references: [id])
+  assignedToId      String
+  assignedTo        User             @relation("ActionPlanAssignedTo", fields: [assignedToId], references: [id])
+  assignedById      String
+  assignedBy        User             @relation("ActionPlanAssignedBy", fields: [assignedById], references: [id])
+  category          String
+  description       String
+  dueDate           DateTime
+  status            ActionPlanStatus @default(open)
+  acknowledgedAt    DateTime?
+  completedAt       DateTime?
+  verifiedAt        DateTime?
+  verificationNotes String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  comments          Comment[]
+}
+
+model Appeal {
+  id                    String       @id @default(uuid())
+  shopId                String
+  shop                  Shop         @relation(fields: [shopId], references: [id])
+  filedById             String
+  filedBy               User         @relation("AppealFiledBy", fields: [filedById], references: [id])
+  filedAt               DateTime     @default(now())
+  reason                String
+  requestedChange       String?
+  status                AppealStatus @default(open)
+  resolverId            String?
+  resolver              User?        @relation("AppealResolver", fields: [resolverId], references: [id])
+  resolutionNotes       String?
+  resolvedAt            DateTime?
+  scoreAdjustmentApplied Float?
+
+  comments              Comment[]
+}
+
+model Comment {
+  id                    String   @id @default(uuid())
+  shopId                String?
+  shop                  Shop?    @relation(fields: [shopId], references: [id])
+  actionPlanId          String?
+  actionPlan            ActionPlan? @relation(fields: [actionPlanId], references: [id])
+  appealId              String?
+  appeal                Appeal?  @relation(fields: [appealId], references: [id])
+  audioTimestampSeconds Int?
+  authorId              String
+  author                User     @relation(fields: [authorId], references: [id])
+  body                  String
+  createdAt             DateTime @default(now())
+}
+
+model PointsLedger {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  sourceType  String
+  sourceRefId String?
+  points      Int
+  reason      String?
+  awardedById String?
+  awardedAt   DateTime @default(now())
+}
+
+model Badge {
+  id           String   @id @default(uuid())
+  code         String   @unique
+  name         String
+  description  String?
+  iconPath     String?
+  category     String
+  earnCriteria Json?
+  active       Boolean  @default(true)
+
+  userBadges   UserBadge[]
+}
+
+model UserBadge {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  badgeId       String
+  badge         Badge    @relation(fields: [badgeId], references: [id])
+  earnedAt      DateTime @default(now())
+  earningShopId String?
+
+  @@unique([userId, badgeId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  entityType String
+  entityId   String
+  action     String
+  before     Json?
+  after      Json?
+  occurredAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+}
+
+model SystemConfig {
+  key       String   @id
+  value     Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}

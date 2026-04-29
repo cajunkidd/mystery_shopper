@@ -1,0 +1,113 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { api } from "../api";
+import { useAuth } from "../auth";
+
+interface ActionPlan {
+  id: string;
+  category: string;
+  description: string;
+  dueDate: string;
+  status: string;
+  shop: { id: string; shopDate: string; type: string };
+  assignedTo: { id: string; fullName: string };
+  assignedBy: { id: string; fullName: string };
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  open: "bg-amber-100 text-amber-800",
+  acknowledged: "bg-blue-100 text-blue-800",
+  in_progress: "bg-blue-100 text-blue-800",
+  completed: "bg-emerald-100 text-emerald-800",
+  verified: "bg-emerald-100 text-emerald-800",
+  overdue: "bg-rose-100 text-rose-800",
+};
+
+export default function ActionPlans() {
+  const { user } = useAuth();
+  const [plans, setPlans] = useState<ActionPlan[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  function load() {
+    api<{ actionPlans: ActionPlan[] }>("/action-plans").then((r) => setPlans(r.actionPlans));
+  }
+  useEffect(load, []);
+
+  async function act(id: string, action: "acknowledge" | "complete" | "verify") {
+    setBusy(id);
+    try {
+      await api(`/action-plans/${id}/${action}`, { method: "POST", body: JSON.stringify({}) });
+      load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (!plans || !user) return <p className="text-slate-500">Loading…</p>;
+  return (
+    <div className="space-y-4">
+      <h1 className="text-2xl font-semibold">Action plans</h1>
+      <div className="card overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead className="text-left text-slate-500 text-xs uppercase">
+            <tr>
+              <th className="py-2 pr-4">Category</th>
+              <th className="pr-4">Description</th>
+              <th className="pr-4">Assigned to</th>
+              <th className="pr-4">Due</th>
+              <th className="pr-4">Shop</th>
+              <th className="pr-4">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {plans.length === 0 && (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-slate-400">No open action plans.</td>
+              </tr>
+            )}
+            {plans.map((p) => {
+              const isMine = p.assignedTo.id === user.id;
+              const canVerify = ["store_manager", "district_manager", "admin"].includes(user.role);
+              return (
+                <tr key={p.id} className="border-t align-top">
+                  <td className="py-2 pr-4 font-medium">{p.category}</td>
+                  <td className="pr-4">{p.description}</td>
+                  <td className="pr-4">{p.assignedTo.fullName}</td>
+                  <td className="pr-4">{p.dueDate.slice(0, 10)}</td>
+                  <td className="pr-4">
+                    <Link className="text-stine-600 hover:underline" to={`/shops/${p.shop.id}`}>
+                      {p.shop.shopDate.slice(0, 10)}
+                    </Link>
+                  </td>
+                  <td className="pr-4">
+                    <span className={`badge ${STATUS_COLOR[p.status] ?? "bg-slate-100 text-slate-700"}`}>
+                      {p.status.replace(/_/g, " ")}
+                    </span>
+                  </td>
+                  <td className="space-x-1">
+                    {isMine && p.status === "open" && (
+                      <button className="btn-secondary text-xs" disabled={busy === p.id} onClick={() => act(p.id, "acknowledge")}>
+                        Acknowledge
+                      </button>
+                    )}
+                    {isMine && (p.status === "acknowledged" || p.status === "in_progress") && (
+                      <button className="btn-secondary text-xs" disabled={busy === p.id} onClick={() => act(p.id, "complete")}>
+                        Mark complete
+                      </button>
+                    )}
+                    {canVerify && p.status === "completed" && (
+                      <button className="btn-primary text-xs" disabled={busy === p.id} onClick={() => act(p.id, "verify")}>
+                        Verify
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

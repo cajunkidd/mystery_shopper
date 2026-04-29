@@ -1,0 +1,74 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+import Layout from "./components/Layout";
+import { useAuth, type Role } from "./auth";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import ShopList from "./pages/ShopList";
+import ShopWizard from "./pages/ShopWizard";
+import ShopDetail from "./pages/ShopDetail";
+import ActionPlans from "./pages/ActionPlans";
+import Appeals from "./pages/Appeals";
+import Rubrics from "./pages/admin/Rubrics";
+import RubricEditor from "./pages/admin/RubricEditor";
+import Users from "./pages/admin/Users";
+
+function Require({ roles, children }: { roles?: Role[]; children: JSX.Element }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8 text-slate-500">Loading…</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  return children;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        element={
+          <Require>
+            <Layout />
+          </Require>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="shops" element={<ShopList />} />
+        <Route
+          path="shops/new"
+          element={
+            <Require roles={["store_manager", "district_manager", "admin"]}>
+              <ShopWizard />
+            </Require>
+          }
+        />
+        <Route path="shops/:id" element={<ShopDetail />} />
+        <Route path="action-plans" element={<ActionPlans />} />
+        <Route path="appeals" element={<Appeals />} />
+        <Route
+          path="admin/rubrics"
+          element={
+            <Require roles={["admin"]}>
+              <Rubrics />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/rubrics/:id"
+          element={
+            <Require roles={["admin"]}>
+              <RubricEditor />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/users"
+          element={
+            <Require roles={["admin"]}>
+              <Users />
+            </Require>
+          }
+        />
+      </Route>
+    </Routes>
+  );
+}
