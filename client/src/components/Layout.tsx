@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { to: "/recognition", label: "Recognition", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/training", label: "Training", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/heatmap", label: "Heatmap", roles: ["store_manager", "district_manager", "admin"] },
+  { to: "/admin", label: "Admin", roles: ["admin"] },
   { to: "/admin/rubrics", label: "Rubrics", roles: ["admin"] },
   { to: "/admin/users", label: "Users", roles: ["admin"] },
   { to: "/admin/import", label: "Import", roles: ["admin"] },

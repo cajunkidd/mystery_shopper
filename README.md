@@ -94,6 +94,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Admin overview page** at `/admin` — at-a-glance tiles for users (active/total), locations, graded shops + queue, action plans + overdue, open appeals, badges earned, training open, active rubrics, active leagues, audit entries in the last 24h. Each tile links to its detail page. Includes a system-status card (DB latency, AI config, scheduler) and a "Run scheduler now" button that calls `POST /admin/jobs/run` and shows the job result inline.
+- **`/health` enrichment** — now reports `ai.configured` (whether `ANTHROPIC_API_KEY` is set), `ai.model`, and `scheduler.enabled`. Useful for k8s liveness/readiness probes and the new admin overview.
+- **First RTL component test** — `NotFound.test.tsx` exercises rendering inside a `MemoryRouter` and asserts on the headline + the back-to-dashboard link's `href`. Proves the React-Testing-Library / jsdom path works for components, not just utilities. **83 tests total** (71 server + 12 client).
+
+## Earlier additions
+
 - **Photo / audio question types in the wizard** — `photo_required` and `audio_required` rubric questions now show a file input during entry. The file is held in client state through the wizard, and after the shop is created the wizard fetches its `answer.id`s and uploads each file to the matching answer via the existing attachments endpoint. Validation: a `photo_required` or `audio_required` question marked `required` blocks submit until a file is attached. Running-score helper credits these answers as max-points-on-presence (parity with the server's `scoreAnswer`).
 
 ## Earlier additions

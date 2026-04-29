@@ -12,6 +12,51 @@ router.post("/jobs/run", async (_req, res) => {
   res.json({ result });
 });
 
+router.get("/overview", async (_req, res) => {
+  const [
+    users,
+    activeUsers,
+    locations,
+    shops,
+    submittedShops,
+    actionPlans,
+    overduePlans,
+    openAppeals,
+    badgesEarned,
+    trainingOpen,
+    rubricsActive,
+    leaguesActive,
+    auditLast24h,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { active: true } }),
+    prisma.location.count(),
+    prisma.shop.count({ where: { status: { not: "draft" } } }),
+    prisma.shop.count({ where: { status: { in: ["submitted", "under_review"] } } }),
+    prisma.actionPlan.count(),
+    prisma.actionPlan.count({ where: { status: "overdue" } }),
+    prisma.appeal.count({ where: { status: { in: ["open", "under_review"] } } }),
+    prisma.userBadge.count(),
+    prisma.trainingAssignment.count({ where: { status: { in: ["assigned", "completed"] } } }),
+    prisma.rubric.count({ where: { status: "active" } }),
+    prisma.league.count({ where: { rolledOverAt: null } }),
+    prisma.auditLog.count({ where: { occurredAt: { gte: new Date(Date.now() - 86400 * 1000) } } }),
+  ]);
+
+  res.json({
+    users: { total: users, active: activeUsers },
+    locations,
+    shops: { graded: shops, queue: submittedShops },
+    actionPlans: { total: actionPlans, overdue: overduePlans },
+    openAppeals,
+    badgesEarned,
+    trainingOpen,
+    rubricsActive,
+    leaguesActive,
+    auditLast24h,
+  });
+});
+
 router.get("/audit-log", async (req, res) => {
   const where: Record<string, unknown> = {};
   if (req.query.entityType) where.entityType = req.query.entityType;

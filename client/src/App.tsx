@@ -33,6 +33,7 @@ const CalibrationDetail = lazy(() =>
 );
 const TrainingModules = lazy(() => import("./pages/admin/TrainingModules"));
 const Config = lazy(() => import("./pages/admin/Config"));
+const AdminOverview = lazy(() => import("./pages/admin/Overview"));
 const CompareShops = lazy(() => import("./pages/CompareShops"));
 
 function Require({ roles, children }: { roles?: Role[]; children: JSX.Element }) {
@@ -80,6 +81,14 @@ export default function App() {
           element={
             <Require roles={["store_manager", "district_manager", "admin"]}>
               <HeatmapPage />
+            </Require>
+          }
+        />
+        <Route
+          path="admin"
+          element={
+            <Require roles={["admin"]}>
+              <Lazy><AdminOverview /></Lazy>
             </Require>
           }
         />

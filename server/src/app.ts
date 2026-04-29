@@ -64,6 +64,13 @@ export function buildApp(): express.Express {
       uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
       db,
       dbLatencyMs: Date.now() - t0,
+      ai: {
+        configured: !!process.env.ANTHROPIC_API_KEY,
+        model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-6",
+      },
+      scheduler: {
+        enabled: process.env.SCHEDULER_DISABLED !== "1" && process.env.NODE_ENV !== "test",
+      },
     });
   });
 
