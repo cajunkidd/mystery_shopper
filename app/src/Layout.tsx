@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useStore } from "./store";
+import { NotificationBell } from "./components/NotificationBell";
 
 export default function Layout() {
   const { users, currentUserId, setCurrentUserId, currentUser } = useStore();
@@ -44,6 +45,7 @@ export default function Layout() {
         </div>
         <span className="who">Phase 1 demo · in-memory data</span>
         <div className="spacer" />
+        <NotificationBell />
         <span className="who">Acting as</span>
         <select
           className="role-switcher"

@@ -83,6 +83,7 @@ export interface Shop {
   percentage: number;
   narrative: string;
   answers: ShopAnswer[];
+  audioDurationSeconds?: number | null;
   createdAt: string;
 }
 
@@ -141,4 +142,13 @@ export interface Appeal {
   resolutionNotes: string;
   resolvedAt: string | null;
   scoreAdjustmentApplied: number | null;
+}
+
+export interface Comment {
+  id: string;
+  shopId: string;
+  authorId: string;
+  body: string;
+  audioTimestampSeconds: number | null;
+  createdAt: string;
 }

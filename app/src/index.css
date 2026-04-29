@@ -358,3 +358,31 @@ table.list tbody tr.clickable { cursor: pointer; }
 .right { text-align: right; }
 .flex-between { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media print {
+  .topbar, .sidebar, .btn-row, .btn, button { display: none !important; }
+  .shell {
+    display: block !important;
+    height: auto !important;
+  }
+  .content {
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+  .split { grid-template-columns: 1fr !important; display: block !important; }
+  .card {
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    border-color: #999;
+  }
+  .section-block { page-break-inside: avoid; }
+  body, html, #root { background: #fff !important; }
+  .page-header h1::before {
+    content: "STINE — Mystery Shop Report\A";
+    white-space: pre;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-primary);
+    letter-spacing: 1px;
+  }
+}

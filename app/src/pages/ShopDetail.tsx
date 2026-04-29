@@ -3,6 +3,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useStore } from "../store";
 import { formatDate, formatRelative, scoreClass } from "../format";
 import type { ActionPlan, Appeal, Review } from "../types";
+import { AudioReview } from "../components/AudioReview";
+import { CommentThread } from "../components/CommentThread";
 
 export default function ShopDetail() {
   const { id } = useParams();
@@ -150,6 +152,13 @@ export default function ShopDetail() {
             );
           })}
 
+          {shop.type === "call" && shop.audioDurationSeconds && (
+            <AudioReview
+              shopId={shop.id}
+              durationSeconds={shop.audioDurationSeconds}
+            />
+          )}
+
           <ReviewSection
             shopId={shop.id}
             existing={existingReview}
@@ -195,6 +204,8 @@ export default function ShopDetail() {
             onFile={(appeal) => fileAppeal(appeal)}
             onResolve={(id, status, notes, adj) => resolveAppeal(id, status, notes, adj)}
           />
+
+          <CommentThread shopId={shop.id} />
         </div>
 
         <aside>

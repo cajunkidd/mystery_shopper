@@ -30,11 +30,19 @@ the surfaces appropriate to it.
   complete, manager can verify.
 - **Appeals**: employee files private appeal; manager resolves with
   approve / partially approve / deny + optional score adjustment.
+- **Discussion thread** on every shop.
 - **Heatmap**: store × rubric section average scores on the company dashboard.
+- **Inbox** in the top bar — derived from the current user's pending reviews,
+  open action plans, and recent review completions.
+- **PDF export**: the "Export PDF" button on a shop opens the print dialog
+  with print-optimized styles (sidebar, nav, and buttons hidden).
+- **Audio review (Phase 2 preview)**: caller shops show a simulated playback
+  timeline with timestamp-anchored comments. Click the timeline to seek;
+  drop a comment that anchors to the current second.
 
 ## Not yet wired (later phases per the spec)
 
-- Audio review (Phase 2)
+- Real audio file upload + waveform (Phase 2 production)
 - Gamification — points, badges, leagues, hunt, challenges (Phase 3)
 - BisTrack integration, AI summarization, agency import (Phase 4)
 - Real persistence and auth — currently a static role switcher

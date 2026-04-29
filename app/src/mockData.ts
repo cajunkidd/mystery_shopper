@@ -1,6 +1,7 @@
 import type {
   ActionPlan,
   Appeal,
+  Comment,
   Location,
   Review,
   Rubric,
@@ -196,6 +197,7 @@ export const shops: Shop[] = [
       { questionId: "q-c-close-1", value: false, scoreAwarded: 0 },
       { questionId: "q-c-close-2", value: false, scoreAwarded: 0 },
     ],
+    audioDurationSeconds: 92,
     createdAt: dateOffset(-5),
   },
   {
@@ -372,5 +374,40 @@ export const appeals: Appeal[] = [
     resolutionNotes: "",
     resolvedAt: null,
     scoreAdjustmentApplied: null,
+  },
+];
+
+export const comments: Comment[] = [
+  {
+    id: "cmt-001",
+    shopId: "shop-003",
+    authorId: "u-mgr-2",
+    body: "Greeting starts here — listen for the lack of branded greeting.",
+    audioTimestampSeconds: 4,
+    createdAt: dateOffset(-3),
+  },
+  {
+    id: "cmt-002",
+    shopId: "shop-003",
+    authorId: "u-mgr-2",
+    body: "This is the moment to ask qualifying questions before quoting price. We skipped straight to a number.",
+    audioTimestampSeconds: 31,
+    createdAt: dateOffset(-3),
+  },
+  {
+    id: "cmt-003",
+    shopId: "shop-003",
+    authorId: "u-mgr-2",
+    body: "Caller mentions they're flexible on timing — perfect opening to invite them in. We let them go.",
+    audioTimestampSeconds: 71,
+    createdAt: dateOffset(-3),
+  },
+  {
+    id: "cmt-004",
+    shopId: "shop-001",
+    authorId: "u-emp-1",
+    body: "Acknowledged — I shadowed Jada this morning. The contractor program callout is a clear pattern in how she frames the close.",
+    audioTimestampSeconds: null,
+    createdAt: dateOffset(-1),
   },
 ];

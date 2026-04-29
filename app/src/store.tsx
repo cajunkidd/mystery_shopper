@@ -2,6 +2,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 import {
   actionPlans as seedActionPlans,
   appeals as seedAppeals,
+  comments as seedComments,
   locations as seedLocations,
   reviews as seedReviews,
   rubrics as seedRubrics,
@@ -13,6 +14,7 @@ import type {
   ActionPlanStatus,
   Appeal,
   AppealStatus,
+  Comment,
   Location,
   Review,
   Rubric,
@@ -35,6 +37,7 @@ interface StoreState {
   reviews: Review[];
   actionPlans: ActionPlan[];
   appeals: Appeal[];
+  comments: Comment[];
 
   getShop: (id: string) => Shop | undefined;
   getReview: (shopId: string) => Review | undefined;
@@ -43,6 +46,9 @@ interface StoreState {
   getLocation: (id: string) => Location | undefined;
   getActionPlansForShop: (shopId: string) => ActionPlan[];
   getAppealsForShop: (shopId: string) => Appeal[];
+  getCommentsForShop: (shopId: string) => Comment[];
+
+  addComment: (comment: Comment) => void;
 
   createShop: (shop: Shop) => void;
   updateShopStatus: (shopId: string, status: ShopStatus) => void;
@@ -69,6 +75,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [reviews, setReviews] = useState<Review[]>(seedReviews);
   const [actionPlans, setActionPlans] = useState<ActionPlan[]>(seedActionPlans);
   const [appeals, setAppeals] = useState<Appeal[]>(seedAppeals);
+  const [comments, setComments] = useState<Comment[]>(seedComments);
 
   const value = useMemo<StoreState>(() => {
     const currentUser = users.find((u) => u.id === currentUserId)!;
@@ -83,6 +90,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       reviews,
       actionPlans,
       appeals,
+      comments,
       getShop: (id) => shops.find((s) => s.id === id),
       getReview: (shopId) => reviews.find((r) => r.shopId === shopId),
       getRubric: (id) => rubrics.find((r) => r.id === id),
@@ -91,6 +99,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       getActionPlansForShop: (shopId) =>
         actionPlans.filter((a) => a.shopId === shopId),
       getAppealsForShop: (shopId) => appeals.filter((a) => a.shopId === shopId),
+      getCommentsForShop: (shopId) =>
+        comments.filter((c) => c.shopId === shopId),
+
+      addComment: (comment) => setComments((prev) => [...prev, comment]),
 
       createShop: (shop) => setShops((prev) => [shop, ...prev]),
       updateShopStatus: (shopId, status) =>
@@ -157,6 +169,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     reviews,
     actionPlans,
     appeals,
+    comments,
   ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
