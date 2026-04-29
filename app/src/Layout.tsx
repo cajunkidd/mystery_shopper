@@ -85,6 +85,7 @@ export default function Layout() {
       { to: "/admin/rubrics", label: "Rubrics" },
       { to: "/admin/users", label: "Users" },
       { to: "/admin/import", label: "Agency Import" },
+      { to: "/admin/calibration", label: "Calibration" },
       { to: "/admin/config", label: "System Config" },
       { to: "/admin/audit", label: "Audit Log" },
     ];

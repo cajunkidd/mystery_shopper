@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { gamificationActiveForLocation, useStore } from "../store";
 import { formatRelative, scoreClass } from "../format";
@@ -420,10 +421,14 @@ function AdminDashboard() {
 }
 
 function Heatmap() {
-  const { shops, locations, rubrics } = useStore();
+  const { shops, locations, rubrics, getUser } = useStore();
+  const navigate = useNavigate();
   const rubric = rubrics.find((r) => r.type === "visit")!;
   const sections = rubric.sections;
   const visitShops = shops.filter((s) => s.type === "visit");
+  const [drill, setDrill] = useState<{ locId: string; sectionId: string } | null>(
+    null,
+  );
 
   const cell = (locId: string, sectionId: string): number | null => {
     const section = sections.find((s) => s.id === sectionId)!;
@@ -447,40 +452,126 @@ function Heatmap() {
     return "#f6cdc9";
   }
 
+  const drillShops = (() => {
+    if (!drill) return [];
+    const section = sections.find((s) => s.id === drill.sectionId)!;
+    const qIds = section.questions.map((q) => q.id);
+    const qMax = section.questions.reduce((sum, q) => sum + q.maxScore, 0);
+    return visitShops
+      .filter((s) => s.locationId === drill.locId)
+      .map((s) => {
+        const got = s.answers
+          .filter((a) => qIds.includes(a.questionId))
+          .reduce((sum, a) => sum + a.scoreAwarded, 0);
+        return { shop: s, sectionPct: Math.round((got / qMax) * 100) };
+      })
+      .sort((a, b) => b.shop.shopDate.localeCompare(a.shop.shopDate));
+  })();
+
+  const drillLoc = drill ? locations.find((l) => l.id === drill.locId) : null;
+  const drillSection = drill ? sections.find((s) => s.id === drill.sectionId) : null;
+
   return (
-    <table className="list">
-      <thead>
-        <tr>
-          <th>Store</th>
-          {sections.map((s) => (
-            <th key={s.id}>{s.name}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {locations.map((loc) => (
-          <tr key={loc.id}>
-            <td>
-              <strong>{loc.name}</strong>
-            </td>
-            {sections.map((s) => {
-              const pct = cell(loc.id, s.id);
-              return (
-                <td
-                  key={s.id}
-                  style={{
-                    background: bg(pct),
-                    fontWeight: 600,
-                    textAlign: "center",
-                  }}
-                >
-                  {pct == null ? "—" : `${pct}%`}
-                </td>
-              );
-            })}
+    <>
+      <table className="list">
+        <thead>
+          <tr>
+            <th>Store</th>
+            {sections.map((s) => (
+              <th key={s.id}>{s.name}</th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {locations.map((loc) => (
+            <tr key={loc.id}>
+              <td>
+                <strong>{loc.name}</strong>
+              </td>
+              {sections.map((s) => {
+                const pct = cell(loc.id, s.id);
+                const active =
+                  drill?.locId === loc.id && drill.sectionId === s.id;
+                return (
+                  <td
+                    key={s.id}
+                    onClick={() =>
+                      pct == null
+                        ? null
+                        : setDrill(active ? null : { locId: loc.id, sectionId: s.id })
+                    }
+                    style={{
+                      background: bg(pct),
+                      fontWeight: 600,
+                      textAlign: "center",
+                      cursor: pct == null ? "default" : "pointer",
+                      outline: active ? "2px solid var(--c-primary)" : "none",
+                    }}
+                  >
+                    {pct == null ? "—" : `${pct}%`}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {drill && drillSection && drillLoc && (
+        <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--c-border)" }}>
+          <div className="flex-between" style={{ marginBottom: 8 }}>
+            <strong>
+              {drillLoc.name} · {drillSection.name} — {drillShops.length} shops
+            </strong>
+            <button className="btn small" onClick={() => setDrill(null)}>
+              Close
+            </button>
+          </div>
+          {drillShops.length === 0 ? (
+            <div className="empty">No shops contribute to this cell.</div>
+          ) : (
+            <table className="list">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Employee</th>
+                  <th>Section score</th>
+                  <th>Overall</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drillShops.map(({ shop: s, sectionPct }) => {
+                  const emp = s.evaluatedEmployeeId
+                    ? getUser(s.evaluatedEmployeeId)
+                    : null;
+                  return (
+                    <tr
+                      key={s.id}
+                      className="clickable"
+                      onClick={() => navigate(`/shops/${s.id}`)}
+                    >
+                      <td>{s.shopDate}</td>
+                      <td>
+                        {emp?.fullName ?? <span className="muted">store-level</span>}
+                      </td>
+                      <td>
+                        <span className={`score ${scoreClass(sectionPct)}`}>
+                          {sectionPct}%
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`score ${scoreClass(s.percentage)}`}>
+                          {s.percentage}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </>
   );
 }

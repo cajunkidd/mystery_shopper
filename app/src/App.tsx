@@ -20,6 +20,7 @@ import Training from "./pages/Training";
 import WeeklyDigest from "./pages/WeeklyDigest";
 import AuditLog from "./pages/AuditLog";
 import Settings from "./pages/Settings";
+import Calibration from "./pages/Calibration";
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
             <Route path="admin/import" element={<AgencyImport />} />
             <Route path="admin/config" element={<AdminConfig />} />
             <Route path="admin/audit" element={<AuditLog />} />
+            <Route path="admin/calibration" element={<Calibration />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

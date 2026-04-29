@@ -103,6 +103,10 @@ interface StoreState {
   ) => void;
   importShops: (shops: Shop[]) => void;
   appendAudit: (entry: Omit<AuditEntry, "id" | "occurredAt">) => void;
+
+  saveRubric: (rubric: Rubric) => void;
+  activateRubric: (rubricId: string) => void;
+  retireRubric: (rubricId: string) => void;
 }
 
 const StoreContext = createContext<StoreState | null>(null);
@@ -141,7 +145,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string>("u-mgr-1");
   const [users] = useState<User[]>(seedUsers);
   const [locations] = useState<Location[]>(seedLocations);
-  const [rubrics] = useState<Rubric[]>(seedRubrics);
+  const [rubrics, setRubrics] = useState<Rubric[]>(seedRubrics);
   const [shops, setShops] = useState<Shop[]>(seedShops);
   const [reviews, setReviews] = useState<Review[]>(seedReviews);
   const [actionPlans, setActionPlans] = useState<ActionPlan[]>(seedActionPlans);
@@ -255,6 +259,32 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         ),
 
       importShops: (newShops) => setShops((prev) => [...newShops, ...prev]),
+
+      saveRubric: (rubric) =>
+        setRubrics((prev) => {
+          const existing = prev.find((r) => r.id === rubric.id);
+          if (existing) return prev.map((r) => (r.id === rubric.id ? rubric : r));
+          return [...prev, rubric];
+        }),
+
+      activateRubric: (rubricId) =>
+        setRubrics((prev) => {
+          const target = prev.find((r) => r.id === rubricId);
+          if (!target) return prev;
+          return prev.map((r) => {
+            if (r.id === rubricId) return { ...r, status: "active" };
+            if (r.type === target.type && r.status === "active")
+              return { ...r, status: "retired" };
+            return r;
+          });
+        }),
+
+      retireRubric: (rubricId) =>
+        setRubrics((prev) =>
+          prev.map((r) =>
+            r.id === rubricId ? { ...r, status: "retired" } : r,
+          ),
+        ),
 
       appendAudit: (entry) =>
         setAuditLog((prev) => [
