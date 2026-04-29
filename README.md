@@ -2,13 +2,13 @@
 
 Internal app for managing mystery-shop and mystery-caller evaluations across Stine LLC's 14 locations. See `STINE_MYSTERY_SHOP_APP_SPEC.md` for the authoritative build spec.
 
-**Status:** Phases 1–3 (Core, Audio Review, Gamification) plus most of Phase 4 (AI summaries + theme clustering, sentiment, agency CSV + PDF import, microlearning loop). The base app is feature-complete against the spec apart from the explicit out-of-scope items at the bottom of this file.
+**Status:** Feature-complete against the spec scope — Phases 1, 2, 3, 3b, and Phase 4 (excluding BisTrack — see "What's not built" below). 113 tests pass. Ready for Stine's first deployment pending the §15 confirm-before-launch items.
 
 ## Stack
 
 - **Server** (`server/`): Node 20 + TypeScript, Express, Prisma ORM, PostgreSQL, JWT auth, Zod validation, helmet + rate-limit, multer, PDFKit, Anthropic SDK
 - **Client** (`client/`): React 18 + TypeScript, Vite, Tailwind, React Router, vitest + RTL
-- **Tests:** 87 total (71 server + 16 client)
+- **Tests:** 113 total (98 server + 23 client)
 
 ## Quickstart
 
@@ -142,14 +142,12 @@ The full Phase 1–3 surface plus most of Phase 4. Quick tour by spec section:
 
 ## What's not built
 
-These items are either deferred or genuinely out of scope:
+The remaining items are all blocked on external inputs or infra Stine controls:
 
-- **BisTrack integration (§4 Phase 4)** — needs the actual data pipeline at Stine; placeholder only
-- **Real email / SMS sending** — `notifyByEmail` / `notifyBySms` toggles exist; no SMTP / Twilio wiring
-- **Multi-instance scheduling** — current scheduler runs in-process via `setInterval`; for >1 replica use pg-cron or BullMQ
-- **Generated Prisma migration files** — `prisma migrate dev` requires a real Postgres to generate. The Docker image runs `prisma migrate deploy` with whatever's in `prisma/migrations/`, which is currently empty — first deploy needs a `prisma migrate dev --name init` against a fresh DB
-- **OpenAPI spec** — auto `GET /_routes` is the lighter substitute
-- **More component RTL tests** — coverage exists for NotFound / Login / Settings; the rest of the UI has unit-level coverage on extracted utilities (CSV, aging) plus the integration / lifecycle / audit-fanout tests on the server side
+- **BisTrack integration (§4 Phase 4)** — needs the actual data pipeline at Stine; placeholder only.
+- **Real email / SMS sending** — every important notification already queues a row in `EmailOutbox` for users with `notifyByEmail=true`. A future SMTP / SES / Twilio drainer just needs to claim `sentAt IS NULL` rows and mark `sentAt`.
+- **Multi-instance scheduler** — the in-process `setInterval` is fine for one replica. With multiple, swap it for pg-cron or BullMQ.
+- **Initial Prisma migration** — `prisma/migrations/20260101000000_init/migration.sql` is a hand-written DDL baseline. Verify with `prisma migrate diff --from-empty --script` against a fresh Postgres before the first prod deploy (see `prisma/migrations/README.md`).
 
 Confirm before launch (per spec §15):
 
@@ -163,8 +161,8 @@ Confirm before launch (per spec §15):
 ## Tests
 
 ```bash
-cd server && npm test     # 71 vitest tests, ~2s
-cd client && npm test     # 16 vitest tests, ~3s
+cd server && npm test     # 98 vitest tests, ~3s
+cd client && npm test     # 23 vitest tests, ~3s
 ```
 
 CI runs both jobs on every push / PR — see `.github/workflows/ci.yml`.
@@ -204,3 +202,9 @@ Built across many small passes; see `git log` for the chronological detail. The 
 21. Friendly audit-log labels + Settings RTL test
 22. Docker setup, response compression, prod-gate dev creds
 23. GitHub Actions CI, request logging, `/version` endpoint
+24. Env validation, `/me/permissions`, mobile notification dot
+25. Shop search, stricter CSP, hand-written initial Prisma migration
+26. `EmailOutbox` deferred queue, `/_routes` descriptions, AnswerAttachments test
+27. OpenAPI 3.1 spec for the core lifecycle
+28. Bulk + permissions + outbox tests, normalized Zod error responses
+29. AI-route tests + final README sync (feature-complete)
