@@ -42,6 +42,7 @@ vi.mock("./db.js", () => ({
     // Prisma's transaction API: array form runs ops in order; returns their results.
     // For tests, just resolve them as-is.
     $transaction: vi.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
+    $queryRawUnsafe: vi.fn().mockResolvedValue([{ ok: 1 }]),
     user: {
       findUnique: vi.fn(async ({ where }: { where: { id?: string; email?: string } }) => {
         if (where.id) return db.users.get(where.id) ?? null;
@@ -161,6 +162,7 @@ vi.mock("./db.js", () => ({
         db.appeals.set(id, a);
         return a;
       }),
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => db.appeals.get(where.id) ?? null),
       findMany: vi.fn(async () => Array.from(db.appeals.values())),
       update: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const a = db.appeals.get(where.id);

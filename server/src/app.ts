@@ -21,13 +21,30 @@ import huntRoutes from "./routes/hunt.js";
 import meRoutes from "./routes/me.js";
 import calibrationRoutes from "./routes/calibration.js";
 import trainingRoutes from "./routes/training.js";
+import { prisma } from "./db.js";
+
+const startedAt = Date.now();
 
 export function buildApp(): express.Express {
   const app = express();
   app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173", credentials: true }));
   app.use(express.json({ limit: "5mb" }));
 
-  app.get("/api/v1/health", (_req, res) => res.json({ ok: true }));
+  app.get("/api/v1/health", async (_req, res) => {
+    const t0 = Date.now();
+    let db: "ok" | "error" = "ok";
+    try {
+      await prisma.$queryRawUnsafe("SELECT 1");
+    } catch {
+      db = "error";
+    }
+    res.json({
+      ok: db === "ok",
+      uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
+      db,
+      dbLatencyMs: Date.now() - t0,
+    });
+  });
 
   app.use("/api/v1/auth", authRoutes);
   app.use("/api/v1/users", userRoutes);

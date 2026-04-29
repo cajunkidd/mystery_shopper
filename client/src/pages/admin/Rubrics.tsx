@@ -68,6 +68,19 @@ export default function Rubrics() {
     }
   }
 
+  async function duplicate(id: string) {
+    setBusy(true);
+    try {
+      const r = await api<{ id: string }>(`/rubrics/${id}/duplicate`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      nav(`/admin/rubrics/${r.id}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!rubrics) return <p className="text-slate-500">Loading…</p>;
   return (
     <div className="space-y-4">
@@ -113,6 +126,9 @@ export default function Rubrics() {
                   {r.status === "active" && (
                     <button className="btn-secondary text-xs" disabled={busy} onClick={() => retire(r.id)}>Retire</button>
                   )}
+                  <button className="btn-secondary text-xs" disabled={busy} onClick={() => duplicate(r.id)}>
+                    Duplicate
+                  </button>
                 </td>
               </tr>
             ))}

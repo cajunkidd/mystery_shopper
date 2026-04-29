@@ -94,6 +94,13 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Audit log expansion (§11)** — now writes entries on appeal `status_change`, rubric `status_change` (activate / retire), shop `export_pdf`, user `self_data_export`, and user `role_change` / `deactivate` / `reactivate`. The admin viewer at `/admin/audit-log` already filters by entity type.
+- **Rubric duplicate** — `POST /rubrics/:id/duplicate` creates a draft of the next version with all sections + questions copied. Surfaced as a "Duplicate" button on the Rubrics admin page.
+- **League tier UI** — admin form now sets `tier`; the list sorts by tier ascending and shows a "rolled over" badge once the period rollover has happened.
+- **Richer health endpoint** — `/health` now reports `uptimeSeconds`, `db: "ok"|"error"`, and `dbLatencyMs` (does a `SELECT 1` per call). Useful for k8s liveness/readiness or external uptime probes.
+
+## Earlier additions
+
 - **League auto-promotion at period end (§6.5)** — `League` gained `tier` and `rolledOverAt`. Hourly scheduler calls `rolloverLeagues` which, for each adjacent tier pair, swaps the lowest-avg store in the upper tier with the highest-avg store in the next tier down. Idempotent via `rolledOverAt`. 3 tests cover the no-op, swap, and idempotency cases.
 - **Retest auto-evaluation** — when a manager links a retest shop to a training assignment, the server computes that shop's percentage on the trigger section and notifies the employee if it improved by ≥10 points.
 - **Action plan + training co-creation** — when training is auto-assigned during review-complete, an action plan referencing the training module is also created so the employee sees one unified queue. 2 tests cover the with-reviewer and without-reviewer paths.

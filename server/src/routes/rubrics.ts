@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
+import { audit } from "../audit.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -160,15 +161,65 @@ router.post("/:id/activate", requireRole("admin"), async (req, res) => {
     }),
     prisma.rubric.update({ where: { id: rubric.id }, data: { status: "active" } }),
   ]);
+  await audit(prisma, req, "rubric", rubric.id, "status_change",
+    { status: "draft" }, { status: "active", type: rubric.type, version: rubric.version });
   res.json({ ok: true });
 });
 
 router.post("/:id/retire", requireRole("admin"), async (req, res) => {
+  const before = await prisma.rubric.findUnique({ where: { id: req.params.id } });
   await prisma.rubric.update({
     where: { id: req.params.id },
     data: { status: "retired", retiredAt: new Date() },
   });
+  await audit(prisma, req, "rubric", req.params.id, "status_change",
+    { status: before?.status ?? null }, { status: "retired" });
   res.json({ ok: true });
+});
+
+// Duplicate an existing rubric as a new draft of the next version. The
+// original stays active; the draft can be edited and activated later.
+router.post("/:id/duplicate", requireRole("admin"), async (req, res) => {
+  const source = await prisma.rubric.findUnique({
+    where: { id: req.params.id },
+    include: { sections: { include: { questions: true }, orderBy: { displayOrder: "asc" } } },
+  });
+  if (!source) return res.status(404).json({ error: "not_found" });
+  const latest = await prisma.rubric.findFirst({
+    where: { type: source.type },
+    orderBy: { version: "desc" },
+  });
+  const dup = await prisma.rubric.create({
+    data: {
+      name: `${source.name.replace(/ v\d+$/, "")} v${(latest?.version ?? source.version) + 1}`,
+      type: source.type,
+      version: (latest?.version ?? source.version) + 1,
+      status: "draft",
+      totalMaxScore: source.totalMaxScore,
+      createdById: req.user!.id,
+      sections: {
+        create: source.sections.map((s) => ({
+          name: s.name,
+          displayOrder: s.displayOrder,
+          weight: s.weight,
+          maxScore: s.maxScore,
+          questions: {
+            create: s.questions.map((q) => ({
+              text: q.text,
+              questionType: q.questionType,
+              weight: q.weight,
+              maxScore: q.maxScore,
+              options: q.options ?? undefined,
+              conditionalLogic: q.conditionalLogic ?? undefined,
+              required: q.required,
+              displayOrder: q.displayOrder,
+            })),
+          },
+        })),
+      },
+    },
+  });
+  res.status(201).json({ id: dup.id });
 });
 
 export default router;

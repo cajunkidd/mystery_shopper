@@ -17,6 +17,7 @@ const userMap = new Map<string, unknown>();
 const findUnique = vi.fn(async ({ where }: { where: { id: string } }) => userMap.get(where.id) ?? null);
 vi.mock("./db.js", () => ({
   prisma: {
+    $queryRawUnsafe: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
     user: { findUnique },
     location: { findMany: vi.fn().mockResolvedValue([]) },
     rubric: { findMany: vi.fn().mockResolvedValue([]) },
@@ -125,10 +126,12 @@ describe("role gating", () => {
 });
 
 describe("health", () => {
-  it("/health is open and returns ok", async () => {
+  it("/health is open and reports ok + uptime + db", async () => {
     const res = await request(app).get("/api/v1/health");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body.ok).toBeDefined();
+    expect(res.body.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    expect(["ok", "error"]).toContain(res.body.db);
   });
 });
 

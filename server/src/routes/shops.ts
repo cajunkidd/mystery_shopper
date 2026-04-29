@@ -6,6 +6,7 @@ import { requireAuth } from "../auth.js";
 import { computeShopTotals } from "../scoring.js";
 import { notify } from "../notifications.js";
 import { validateAnswer, type ConditionalLogic } from "../conditional.js";
+import { audit } from "../audit.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -233,6 +234,10 @@ router.get("/:id/pdf", async (req, res) => {
   });
   if (!shop) return res.status(404).json({ error: "not_found" });
 
+  await audit(prisma, req, "shop", shop.id, "export_pdf", null, {
+    locationId: shop.locationId,
+    type: shop.type,
+  });
   const doc = new PDFDocument({ margin: 50 });
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="shop-${shop.id.slice(0, 8)}.pdf"`);

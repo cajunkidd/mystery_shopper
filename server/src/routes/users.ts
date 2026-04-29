@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { hashPassword, requireAuth, requireRole } from "../auth.js";
+import { audit } from "../audit.js";
 
 const router = Router();
 
@@ -80,12 +81,22 @@ const patchBody = z.object({
 router.patch("/:id", requireRole("admin"), async (req, res) => {
   const parsed = patchBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  const before = await prisma.user.findUnique({ where: { id: req.params.id } });
   const data: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.password) {
     data.passwordHash = await hashPassword(parsed.data.password);
     delete data.password;
   }
   const user = await prisma.user.update({ where: { id: req.params.id }, data });
+  // §11: log role and active-state changes (privacy / access events).
+  if (parsed.data.role && parsed.data.role !== before?.role) {
+    await audit(prisma, req, "user", user.id, "role_change",
+      { role: before?.role ?? null }, { role: parsed.data.role });
+  }
+  if (parsed.data.active !== undefined && parsed.data.active !== before?.active) {
+    await audit(prisma, req, "user", user.id, parsed.data.active ? "reactivate" : "deactivate",
+      { active: before?.active ?? null }, { active: parsed.data.active });
+  }
   res.json({ id: user.id });
 });
 

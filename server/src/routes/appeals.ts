@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
+import { audit } from "../audit.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -57,6 +58,7 @@ const resolveBody = z.object({
 router.post("/appeals/:id/resolve", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = resolveBody.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  const before = await prisma.appeal.findUnique({ where: { id: req.params.id } });
   const appeal = await prisma.appeal.update({
     where: { id: req.params.id },
     data: {
@@ -72,6 +74,9 @@ router.post("/appeals/:id/resolve", requireRole("store_manager", "district_manag
     where: { id: appeal.shopId },
     data: { status: "closed" },
   });
+  await audit(prisma, req, "appeal", appeal.id, "status_change",
+    { status: before?.status ?? null },
+    { status: parsed.data.status, scoreAdjustmentApplied: parsed.data.scoreAdjustmentApplied ?? null });
   res.json({ appeal });
 });
 

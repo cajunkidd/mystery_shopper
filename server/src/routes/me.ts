@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db.js";
 import { requireAuth } from "../auth.js";
+import { audit } from "../audit.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -41,6 +42,11 @@ router.get("/me/export", async (req, res) => {
     notifications,
   };
 
+  await audit(prisma, req, "user", userId, "self_data_export", null, {
+    shops: shops.length,
+    actionPlans: actionPlans.length,
+    appeals: appeals.length,
+  });
   res.setHeader("Content-Type", "application/json");
   res.setHeader(
     "Content-Disposition",

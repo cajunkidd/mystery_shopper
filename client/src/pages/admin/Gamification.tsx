@@ -3,7 +3,8 @@ import { api } from "../../api";
 
 interface Location { id: string; name: string; code: string }
 interface League {
-  id: string; name: string; periodStart: string; periodEnd: string; storeIds: string[];
+  id: string; name: string; tier: number; periodStart: string; periodEnd: string;
+  storeIds: string[]; rolledOverAt: string | null;
 }
 interface Challenge {
   id: string; name: string; description: string | null;
@@ -42,6 +43,7 @@ function Leagues() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [name, setName] = useState("");
+  const [tier, setTier] = useState(1);
   const [periodStart, setPeriodStart] = useState(new Date().toISOString().slice(0, 10));
   const [periodEnd, setPeriodEnd] = useState(new Date(Date.now() + 90 * 86400 * 1000).toISOString().slice(0, 10));
   const [selected, setSelected] = useState<string[]>([]);
@@ -61,6 +63,7 @@ function Leagues() {
         method: "POST",
         body: JSON.stringify({
           name,
+          tier,
           periodStart: new Date(periodStart).toISOString(),
           periodEnd: new Date(periodEnd).toISOString(),
           storeIds: selected,
@@ -78,10 +81,14 @@ function Leagues() {
     <div className="space-y-4">
       <div className="card space-y-3">
         <h3 className="font-medium">Create league</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="md:col-span-2">
             <label className="label">Name</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Tier (1 = top)</label>
+            <input className="input" type="number" min={1} value={tier} onChange={(e) => setTier(Math.max(1, Number(e.target.value) || 1))} />
           </div>
           <div>
             <label className="label">Period start</label>
@@ -117,12 +124,16 @@ function Leagues() {
       <div className="card">
         <h3 className="font-medium mb-2">Leagues ({leagues.length})</h3>
         <ul className="text-sm space-y-1">
-          {leagues.map((l) => (
+          {[...leagues].sort((a, b) => a.tier - b.tier).map((l) => (
             <li key={l.id} className="border-b last:border-0 py-1">
               <span className="font-medium">{l.name}</span>
+              <span className="badge ml-2 bg-stine-50 text-stine-700">tier {l.tier}</span>
               <span className="text-slate-400 ml-2">
                 {l.periodStart.slice(0, 10)} → {l.periodEnd.slice(0, 10)} · {l.storeIds.length} stores
               </span>
+              {l.rolledOverAt && (
+                <span className="badge ml-2 bg-emerald-50 text-emerald-700">rolled over</span>
+              )}
             </li>
           ))}
         </ul>
