@@ -42,6 +42,7 @@ npm install
 npm run prisma:generate
 npm run prisma:migrate     # creates the database schema
 npm run seed               # 14 locations + sample users + active rubrics
+npm run seed:demo          # optional: 8 sample shops, 1 appeal, 2 action plans, 1 league
 npm run dev                # API on http://localhost:4000
 ```
 
@@ -93,6 +94,11 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 - **Unit tests** — `npm run test` exercises the scoring engine and points engine (17 tests covering yes/no, scale, multi-choice, streak bonus capping, improvement threshold, manager bonus).
 
 ## Latest additions
+
+- **Demo data seed** — `npm run seed:demo` populates 8 sample shops across 2 employees and 2 locations (mixing high / okay / poor scores), an in-progress review on the most recent submission, an overdue + an open action plan, an open appeal, a training module + auto-style assignment, and a league. Idempotent: re-running wipes prior `demo:`-tagged rows first. Makes a fresh install immediately interactive.
+- **Mobile bottom nav for employees (§7)** — sticky bottom bar on `<sm` breakpoints with 4 large tap targets: Dashboard, Shops, Recognition, Training. Renders only for employees per spec (§7: mobile-first for employees, desktop-first acceptable for managers/admin). The desktop top nav still works on larger screens.
+
+## Earlier additions
 
 - **User picker for bulk reassign** — replaced the rough `prompt()` with a proper expandable card on `/action-plans`: select an active employee, see their email next to their name, click Reassign. Backend `GET /users` now accepts `?at=<locationId>` and lets store managers list employees at their own location (admin/district still see all).
 - **Settings exposes data export** — the §11 "right to know" download is now reachable from `/settings` with a one-line rationale, not just the employee dashboard.

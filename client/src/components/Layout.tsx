@@ -6,16 +6,18 @@ interface NavItem {
   to: string;
   label: string;
   roles: Role[];
+  /** Emoji glyph for the mobile bottom nav (employees only). */
+  glyph?: string;
 }
 
 const NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", roles: ["employee", "store_manager", "district_manager", "admin"] },
-  { to: "/shops", label: "Shops", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/", label: "Dashboard", glyph: "🏠", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/shops", label: "Shops", glyph: "📋", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/shops/new", label: "Enter Shop", roles: ["store_manager", "district_manager", "admin"] },
-  { to: "/action-plans", label: "Action Plans", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/action-plans", label: "Plans", glyph: "✓", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/appeals", label: "Appeals", roles: ["employee", "store_manager", "district_manager", "admin"] },
-  { to: "/recognition", label: "Recognition", roles: ["employee", "store_manager", "district_manager", "admin"] },
-  { to: "/training", label: "Training", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/recognition", label: "Recognition", glyph: "🏅", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/training", label: "Training", glyph: "🎓", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/heatmap", label: "Heatmap", roles: ["store_manager", "district_manager", "admin"] },
   { to: "/admin", label: "Admin", roles: ["admin"] },
   { to: "/admin/rubrics", label: "Rubrics", roles: ["admin"] },
@@ -27,6 +29,11 @@ const NAV: NavItem[] = [
   { to: "/admin/audit-log", label: "Audit", roles: ["admin"] },
   { to: "/admin/config", label: "Config", roles: ["admin"] },
 ];
+
+// §7: mobile-first for employees. Bottom nav only renders on small viewports
+// for the employee role; manager/admin keep the desktop top nav (their
+// workflows are desktop-first per spec).
+const MOBILE_NAV_FOR_EMPLOYEE = ["/", "/shops", "/recognition", "/training"];
 
 export default function Layout() {
   const { user, logout } = useAuth();
@@ -71,9 +78,35 @@ export default function Layout() {
           </div>
         </div>
       </header>
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-6">
+      <main className={`flex-1 max-w-7xl mx-auto w-full px-4 py-6 ${user.role === "employee" ? "pb-24 sm:pb-6" : ""}`}>
         <Outlet />
       </main>
+
+      {user.role === "employee" && (
+        <nav
+          className="sm:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.04)] z-30"
+          aria-label="Bottom navigation"
+        >
+          <ul className="grid grid-cols-4">
+            {NAV.filter((n) => MOBILE_NAV_FOR_EMPLOYEE.includes(n.to) && n.roles.includes(user.role)).map((n) => (
+              <li key={n.to}>
+                <NavLink
+                  to={n.to}
+                  end={n.to === "/"}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center py-2 text-xs ${
+                      isActive ? "text-stine-700" : "text-slate-500"
+                    }`
+                  }
+                >
+                  <span className="text-xl leading-none" aria-hidden>{n.glyph}</span>
+                  <span className="mt-0.5">{n.label}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </div>
   );
 }
