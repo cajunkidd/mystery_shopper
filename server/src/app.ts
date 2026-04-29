@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
+import compression from "compression";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import locationRoutes from "./routes/locations.js";
@@ -34,6 +35,19 @@ export function buildApp(): express.Express {
   if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173", credentials: true }));
+  // Skip compression for the audio/PDF stream endpoints — they're already
+  // compressed binary and double-compressing wastes CPU.
+  app.use(
+    compression({
+      filter: (req, res) => {
+        const ct = res.getHeader("Content-Type");
+        if (typeof ct === "string" && (ct.startsWith("audio/") || ct === "application/pdf" || ct.startsWith("image/"))) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    }),
+  );
   app.use(express.json({ limit: "5mb" }));
 
   // Mount a tight rate limit on the login route only — the rest of the API

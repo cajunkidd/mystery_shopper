@@ -60,9 +60,11 @@ export default function Login() {
           <button className="btn-primary w-full" disabled={busy}>
             {busy ? "Signing in…" : "Sign in"}
           </button>
-          <p className="text-xs text-slate-400 pt-2">
-            Dev seed: kyle@stine.test / admin1234 · manager.sulphur@stine.test / manager1234 · alex.employee@stine.test / employee1234
-          </p>
+          {import.meta.env.DEV && (
+            <p className="text-xs text-slate-400 pt-2">
+              Dev seed: kyle@stine.test / admin1234 · manager.sulphur@stine.test / manager1234 · alex.employee@stine.test / employee1234
+            </p>
+          )}
         </form>
       </div>
     </div>

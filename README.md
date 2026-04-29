@@ -56,6 +56,17 @@ npm run dev                # http://localhost:5173
 
 The Vite dev server proxies `/api` to `http://localhost:4000`.
 
+### Docker (one-command bring-up)
+
+```bash
+docker compose up --build
+# web at http://localhost:8080, api at http://localhost:4000, postgres at :5432
+docker compose exec api npm run seed       # one-time
+docker compose exec api npm run seed:demo  # optional sample data
+```
+
+`docker-compose.yml` boots Postgres + the API + an nginx-served SPA. The API container runs `prisma migrate deploy` on startup, so you don't need to migrate manually. Set `ANTHROPIC_API_KEY` in your shell to enable the AI features.
+
 ## Seeded test users
 
 | Email                            | Password       | Role             |
@@ -94,6 +105,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 - **Unit tests** — `npm run test` exercises the scoring engine and points engine (17 tests covering yes/no, scale, multi-choice, streak bonus capping, improvement threshold, manager bonus).
 
 ## Latest additions
+
+- **Docker setup** — `server/Dockerfile` (multi-stage Node 20 → slim runtime; runs `prisma migrate deploy` on boot), `client/Dockerfile` (build → nginx serving the SPA with `/api` proxied to the API container), and a `docker-compose.yml` that wires Postgres + API + nginx in one `docker compose up --build`. README has the one-command bring-up.
+- **Response compression** — `compression()` is on for JSON. Filters out audio / PDF / image streams so we don't waste CPU double-compressing already-compressed binaries. Real wire-byte savings on the bigger endpoints (audit log, shop list, dashboards).
+- **Login: hide dev seed credentials in production** — the help line listing seeded passwords is now gated on `import.meta.env.DEV`, so prod builds don't leak them under the form. Also added `vite/client` reference so `import.meta.env` is properly typed.
+
+## Earlier additions
 
 - **Audit log: friendly labels** — `GET /admin/audit-log` now resolves the actor (`fullName <email>`) in one batched lookup and the entity in a per-row resolver: users → `Name <email>`, rubrics → `Name (type vN)`, reviews → `Review of LOC YYYY-MM-DD`, appeals → `Appeal on LOC YYYY-MM-DD`, shops → `LOC YYYY-MM-DD`. Deleted entities render as a slate-italic "deleted (UUID-prefix)" so the row is still useful. The admin page surfaces the new labels instead of UUID prefixes.
 - **Third RTL test** — `Settings.test.tsx` mocks `useAuth` and the API helper, asserts the user identity card renders the seeded name + email + the §11 "Download my data" button, and asserts that flipping the SMS toggle PATCHes `/me/preferences` with the right body. **87 tests total** (71 server + 16 client).
