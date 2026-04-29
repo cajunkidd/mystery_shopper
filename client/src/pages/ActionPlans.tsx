@@ -63,6 +63,7 @@ export default function ActionPlans() {
 
   const canVerify = ["store_manager", "district_manager", "admin"].includes(user.role);
   const completedIds = filtered.filter((p) => p.status === "completed").map((p) => p.id);
+
   async function bulkVerify() {
     if (completedIds.length === 0) return;
     setBusy("bulk");
@@ -77,15 +78,40 @@ export default function ActionPlans() {
     }
   }
 
+  async function bulkReassign() {
+    if (!filtered) return;
+    const ids = filtered.filter((p) => ["open", "acknowledged", "in_progress", "overdue"].includes(p.status)).map((p) => p.id);
+    if (ids.length === 0) return;
+    const toUserId = window.prompt(`Reassign ${ids.length} open action plans to which user id?`);
+    if (!toUserId) return;
+    setBusy("reassign");
+    try {
+      await api("/action-plans/bulk-reassign", {
+        method: "POST",
+        body: JSON.stringify({ ids, toUserId }),
+      });
+      load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Action plans</h1>
-        {canVerify && completedIds.length > 0 && (
-          <button className="btn-primary text-sm" disabled={busy === "bulk"} onClick={bulkVerify}>
-            Verify {completedIds.length} completed
-          </button>
-        )}
+        <div className="flex gap-2">
+          {canVerify && completedIds.length > 0 && (
+            <button className="btn-primary text-sm" disabled={busy === "bulk"} onClick={bulkVerify}>
+              Verify {completedIds.length} completed
+            </button>
+          )}
+          {canVerify && (
+            <button className="btn-secondary text-sm" disabled={busy === "reassign"} onClick={bulkReassign}>
+              Reassign all open
+            </button>
+          )}
+        </div>
       </div>
       <div className="card flex flex-wrap items-end gap-3">
         {user.role !== "employee" && (

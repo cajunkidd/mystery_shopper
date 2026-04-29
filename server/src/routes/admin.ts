@@ -61,12 +61,18 @@ router.get("/audit-log", async (req, res) => {
   const where: Record<string, unknown> = {};
   if (req.query.entityType) where.entityType = req.query.entityType;
   if (req.query.actorId) where.actorId = req.query.actorId;
+  // Cursor pagination: ?before=<ISO timestamp> returns rows older than that.
+  if (req.query.before) {
+    where.occurredAt = { lt: new Date(String(req.query.before)) };
+  }
+  const limit = Math.min(Number(req.query.limit ?? 50), 200);
   const items = await prisma.auditLog.findMany({
     where,
     orderBy: { occurredAt: "desc" },
-    take: Number(req.query.limit ?? 100),
+    take: limit,
   });
-  res.json({ items });
+  const nextBefore = items.length === limit ? items[items.length - 1].occurredAt.toISOString() : null;
+  res.json({ items, nextBefore });
 });
 
 router.get("/config", async (_req, res) => {

@@ -94,6 +94,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Pagination UI** — `GET /admin/audit-log` now returns a `nextBefore` cursor (ISO timestamp of the oldest row in the page); the audit-log page exposes a "Load older entries" button that uses it. Shop list does page-based fetching: each "Load more shops" click bumps `?limit` by 50.
+- **Bulk reassign action plans** — `POST /action-plans/bulk-reassign` flips up to 100 plans to a new assignee in one updateMany; sends a single rolled-up notification to the target. UI button on `/action-plans` ("Reassign all open") prompts for the target user id and calls it.
+- **Second RTL component test** — `Login.test.tsx` mocks `useAuth`, asserts the submit button reads "Signing in…" while the in-flight promise hasn't resolved, and asserts the rose error message appears when login rejects. Found and fixed an a11y bug along the way: Login's `<label>`s weren't associated with their inputs (no `htmlFor`/`id`). **85 tests total** (71 server + 14 client).
+
+## Earlier additions
+
 - **Admin overview page** at `/admin` — at-a-glance tiles for users (active/total), locations, graded shops + queue, action plans + overdue, open appeals, badges earned, training open, active rubrics, active leagues, audit entries in the last 24h. Each tile links to its detail page. Includes a system-status card (DB latency, AI config, scheduler) and a "Run scheduler now" button that calls `POST /admin/jobs/run` and shows the job result inline.
 - **`/health` enrichment** — now reports `ai.configured` (whether `ANTHROPIC_API_KEY` is set), `ai.model`, and `scheduler.enabled`. Useful for k8s liveness/readiness probes and the new admin overview.
 - **First RTL component test** — `NotFound.test.tsx` exercises rendering inside a `MemoryRouter` and asserts on the headline + the back-to-dashboard link's `href`. Proves the React-Testing-Library / jsdom path works for components, not just utilities. **83 tests total** (71 server + 12 client).

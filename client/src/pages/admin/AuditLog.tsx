@@ -16,11 +16,33 @@ interface AuditEntry {
 export default function AuditLog() {
   const [items, setItems] = useState<AuditEntry[] | null>(null);
   const [filter, setFilter] = useState("");
+  const [nextBefore, setNextBefore] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     const q = filter ? `?entityType=${encodeURIComponent(filter)}` : "";
-    api<{ items: AuditEntry[] }>(`/admin/audit-log${q}`).then((r) => setItems(r.items));
+    api<{ items: AuditEntry[]; nextBefore: string | null }>(`/admin/audit-log${q}`).then((r) => {
+      setItems(r.items);
+      setNextBefore(r.nextBefore);
+    });
   }, [filter]);
+
+  async function loadMore() {
+    if (!nextBefore) return;
+    setLoadingMore(true);
+    try {
+      const params = new URLSearchParams();
+      if (filter) params.set("entityType", filter);
+      params.set("before", nextBefore);
+      const r = await api<{ items: AuditEntry[]; nextBefore: string | null }>(
+        `/admin/audit-log?${params.toString()}`,
+      );
+      setItems((cur) => [...(cur ?? []), ...r.items]);
+      setNextBefore(r.nextBefore);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -63,6 +85,13 @@ export default function AuditLog() {
               ))}
             </tbody>
           </table>
+          {nextBefore && (
+            <div className="mt-3 flex justify-center">
+              <button className="btn-secondary text-xs" disabled={loadingMore} onClick={loadMore}>
+                {loadingMore ? "Loading…" : "Load older entries"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

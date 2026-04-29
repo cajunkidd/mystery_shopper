@@ -84,6 +84,41 @@ router.post("/action-plans/:id/complete", async (req, res) => {
   res.json({ actionPlan: updated });
 });
 
+// Bulk reassign — manager+ only. Reassigns every plan in `ids` to a new
+// employee. Useful when an employee leaves or transfers — you don't want
+// to manually click through every open plan.
+const bulkReassignBody = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(100),
+  toUserId: z.string().uuid(),
+});
+router.post(
+  "/action-plans/bulk-reassign",
+  requireRole("store_manager", "district_manager", "admin"),
+  async (req, res) => {
+    const parsed = bulkReassignBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    const target = await prisma.user.findUnique({ where: { id: parsed.data.toUserId } });
+    if (!target || !target.active) return res.status(400).json({ error: "invalid_target" });
+    const result = await prisma.actionPlan.updateMany({
+      where: { id: { in: parsed.data.ids } },
+      data: { assignedToId: parsed.data.toUserId },
+    });
+    // Notify the new assignee in one batched call (one notification per plan
+    // would spam — a single rollup is friendlier).
+    if (result.count > 0) {
+      await notify(
+        prisma,
+        parsed.data.toUserId,
+        "action_plan_assigned",
+        `${result.count} action plans were reassigned to you`,
+        "Reassignment from a manager.",
+        "/action-plans",
+      );
+    }
+    res.json({ reassigned: result.count });
+  },
+);
+
 // Bulk verify — accepts up to 100 action plan IDs at once. Manager+ only;
 // each plan must be in 'completed' state to flip to 'verified'.
 const bulkVerifyBody = z.object({ ids: z.array(z.string().uuid()).min(1).max(100) });

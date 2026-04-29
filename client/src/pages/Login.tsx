@@ -33,8 +33,9 @@ export default function Login() {
         <p className="text-sm text-slate-500 mb-5">Sign in with your Stine credentials.</p>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="label">Email</label>
+            <label className="label" htmlFor="login-email">Email</label>
             <input
+              id="login-email"
               className="input"
               type="email"
               autoComplete="username"
@@ -44,8 +45,9 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="label">Password</label>
+            <label className="label" htmlFor="login-password">Password</label>
             <input
+              id="login-password"
               className="input"
               type="password"
               autoComplete="current-password"

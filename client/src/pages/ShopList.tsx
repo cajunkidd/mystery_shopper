@@ -30,25 +30,45 @@ const STATUS_COLOR: Record<string, string> = {
   appealed: "bg-rose-100 text-rose-800",
 };
 
+const PAGE_SIZE = 50;
+
 export default function ShopList() {
   const [shops, setShops] = useState<ShopRow[] | null>(null);
   const [filters, setFilters] = useState<FilterState>({ status: "", type: "", from: "", to: "" });
+  const [pages, setPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const queryString = useMemo(() => {
+  const baseParams = useMemo(() => {
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.type) params.set("type", filters.type);
     if (filters.from) params.set("from", new Date(filters.from).toISOString());
     if (filters.to) params.set("to", new Date(filters.to).toISOString());
-    const s = params.toString();
-    return s ? `?${s}` : "";
+    return params;
   }, [filters]);
 
   useEffect(() => {
-    api<{ shops: ShopRow[] }>(`/shops${queryString}`).then((r) => setShops(r.shops));
-  }, [queryString]);
+    const params = new URLSearchParams(baseParams);
+    params.set("limit", String(PAGE_SIZE * pages));
+    api<{ shops: ShopRow[] }>(`/shops?${params.toString()}`).then((r) => setShops(r.shops));
+  }, [baseParams, pages]);
+
+  // Reset paging when filters change.
+  useEffect(() => {
+    setPages(1);
+  }, [filters]);
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      setPages((p) => p + 1);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   if (!shops) return <p className="text-slate-500">Loading…</p>;
+  const couldHaveMore = shops.length === PAGE_SIZE * pages;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -138,6 +158,13 @@ export default function ShopList() {
             ))}
           </tbody>
         </table>
+        {couldHaveMore && (
+          <div className="mt-3 flex justify-center">
+            <button className="btn-secondary text-xs" disabled={loadingMore} onClick={loadMore}>
+              {loadingMore ? "Loading…" : "Load more shops"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
