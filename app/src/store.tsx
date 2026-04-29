@@ -9,20 +9,43 @@ import {
   shops as seedShops,
   users as seedUsers,
 } from "./mockData";
+import {
+  badgeCatalog,
+  bisTrackData,
+  challenges as seedChallenges,
+  huntCampaigns as seedHuntCampaigns,
+  huntReveals as seedHuntReveals,
+  initialSystemConfig,
+  initialUserBadges,
+  leagues as seedLeagues,
+  trainingModules as seedTrainingModules,
+} from "./mockData2";
 import type {
   ActionPlan,
   ActionPlanStatus,
   Appeal,
   AppealStatus,
+  AuditEntry,
+  BadgeDef,
+  BisTrackDaily,
+  Challenge,
   Comment,
+  HuntCampaign,
+  HuntReveal,
+  League,
   Location,
+  PointsEntry,
   Review,
   Rubric,
   Shop,
   ShopAnswer,
   ShopStatus,
+  SystemConfig,
+  TrainingModule,
   User,
+  UserBadge,
 } from "./types";
+import { buildPointsLedger } from "./points";
 
 interface StoreState {
   currentUserId: string;
@@ -38,6 +61,22 @@ interface StoreState {
   actionPlans: ActionPlan[];
   appeals: Appeal[];
   comments: Comment[];
+
+  pointsLedger: PointsEntry[];
+  badgeCatalog: BadgeDef[];
+  userBadges: UserBadge[];
+  leagues: League[];
+  challenges: Challenge[];
+  huntCampaigns: HuntCampaign[];
+  huntReveals: HuntReveal[];
+
+  trainingModules: TrainingModule[];
+  bisTrack: BisTrackDaily[];
+
+  systemConfig: SystemConfig;
+  setSystemConfig: (cfg: SystemConfig) => void;
+
+  auditLog: AuditEntry[];
 
   getShop: (id: string) => Shop | undefined;
   getReview: (shopId: string) => Review | undefined;
@@ -62,9 +101,41 @@ interface StoreState {
     notes: string,
     scoreAdjustment: number | null,
   ) => void;
+  importShops: (shops: Shop[]) => void;
+  appendAudit: (entry: Omit<AuditEntry, "id" | "occurredAt">) => void;
 }
 
 const StoreContext = createContext<StoreState | null>(null);
+
+const seedAuditLog: AuditEntry[] = [
+  {
+    id: "audit-1",
+    actorId: "u-mgr-1",
+    entityType: "Shop",
+    entityId: "shop-001",
+    action: "score_change",
+    description: "No adjustment applied; manager confirmed shopper score.",
+    occurredAt: "2026-04-27",
+  },
+  {
+    id: "audit-2",
+    actorId: "u-mgr-2",
+    entityType: "Review",
+    entityId: "rev-003",
+    action: "score_change",
+    description: "Applied +5 score adjustment with justification (call handoff).",
+    occurredAt: "2026-04-26",
+  },
+  {
+    id: "audit-3",
+    actorId: "u-emp-3",
+    entityType: "Appeal",
+    entityId: "app-001",
+    action: "create",
+    description: "Filed appeal disputing call attribution.",
+    occurredAt: "2026-04-25",
+  },
+];
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<string>("u-mgr-1");
@@ -76,6 +147,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [actionPlans, setActionPlans] = useState<ActionPlan[]>(seedActionPlans);
   const [appeals, setAppeals] = useState<Appeal[]>(seedAppeals);
   const [comments, setComments] = useState<Comment[]>(seedComments);
+  const [userBadges] = useState<UserBadge[]>(initialUserBadges);
+  const [leagues] = useState<League[]>(seedLeagues);
+  const [challenges] = useState<Challenge[]>(seedChallenges);
+  const [huntCampaigns] = useState<HuntCampaign[]>(seedHuntCampaigns);
+  const [huntReveals] = useState<HuntReveal[]>(seedHuntReveals);
+  const [systemConfig, setSystemConfig] = useState<SystemConfig>(initialSystemConfig);
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>(seedAuditLog);
+
+  const pointsLedger = useMemo(
+    () => buildPointsLedger(shops, reviews),
+    [shops, reviews],
+  );
 
   const value = useMemo<StoreState>(() => {
     const currentUser = users.find((u) => u.id === currentUserId)!;
@@ -91,6 +174,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       actionPlans,
       appeals,
       comments,
+      pointsLedger,
+      badgeCatalog,
+      userBadges,
+      leagues,
+      challenges,
+      huntCampaigns,
+      huntReveals,
+      trainingModules: seedTrainingModules,
+      bisTrack: bisTrackData,
+      systemConfig,
+      setSystemConfig,
+      auditLog,
       getShop: (id) => shops.find((s) => s.id === id),
       getReview: (shopId) => reviews.find((r) => r.shopId === shopId),
       getRubric: (id) => rubrics.find((r) => r.id === id),
@@ -117,8 +212,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           return [review, ...prev];
         }),
 
-      createActionPlan: (plan) =>
-        setActionPlans((prev) => [plan, ...prev]),
+      createActionPlan: (plan) => setActionPlans((prev) => [plan, ...prev]),
 
       updateActionPlanStatus: (id, status, note) =>
         setActionPlans((prev) =>
@@ -159,6 +253,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
               : a,
           ),
         ),
+
+      importShops: (newShops) => setShops((prev) => [...newShops, ...prev]),
+
+      appendAudit: (entry) =>
+        setAuditLog((prev) => [
+          {
+            ...entry,
+            id: `audit-${Math.random().toString(36).slice(2, 8)}`,
+            occurredAt: new Date().toISOString().slice(0, 10),
+          },
+          ...prev,
+        ]),
     };
   }, [
     currentUserId,
@@ -170,6 +276,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     actionPlans,
     appeals,
     comments,
+    pointsLedger,
+    userBadges,
+    leagues,
+    challenges,
+    huntCampaigns,
+    huntReveals,
+    systemConfig,
+    auditLog,
   ]);
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
@@ -187,4 +301,13 @@ export function computeShopScore(rubric: Rubric, answers: ShopAnswer[]) {
     .flatMap((s) => s.questions)
     .reduce((sum, q) => sum + q.maxScore, 0);
   return { total, max, percentage: max ? Math.round((total / max) * 100) : 0 };
+}
+
+export function gamificationActiveForLocation(
+  cfg: SystemConfig,
+  locationId: string | null,
+): boolean {
+  if (!cfg.gamificationEnabled) return false;
+  if (!locationId) return true;
+  return cfg.enabledLocationIds.includes(locationId);
 }

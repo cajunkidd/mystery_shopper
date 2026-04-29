@@ -152,3 +152,121 @@ export interface Comment {
   audioTimestampSeconds: number | null;
   createdAt: string;
 }
+
+export type PointsSource =
+  | "shop_score"
+  | "type_multiplier"
+  | "streak_bonus"
+  | "improvement_bonus"
+  | "manager_bonus"
+  | "badge_earned"
+  | "hunt_reveal";
+
+export interface PointsEntry {
+  id: string;
+  userId: string;
+  source: PointsSource;
+  sourceRefId: string;
+  points: number;
+  reason: string;
+  awardedBy: string | null;
+  awardedAt: string;
+}
+
+export type BadgeCategory = "absolute" | "improvement" | "tenure" | "special";
+
+export interface BadgeDef {
+  code: string;
+  name: string;
+  description: string;
+  category: BadgeCategory;
+  icon: string;
+}
+
+export interface UserBadge {
+  userId: string;
+  badgeCode: string;
+  earnedAt: string;
+  earningShopId: string | null;
+}
+
+export interface League {
+  id: string;
+  name: string;
+  periodStart: string;
+  periodEnd: string;
+  storeIds: string[];
+}
+
+export interface Challenge {
+  id: string;
+  name: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  metric: "avg_score" | "score_above_threshold_count" | "category_avg";
+  category: string | null;
+  threshold: number | null;
+  participatingLocationIds: string[];
+}
+
+export interface HuntCampaign {
+  id: string;
+  name: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  scenarios: { codeword: string; trigger: string }[];
+  active: boolean;
+}
+
+export interface HuntReveal {
+  id: string;
+  huntCampaignId: string;
+  shopId: string;
+  recognizedEmployeeId: string;
+  identifiedByEmployees: string[];
+  revealedAt: string;
+}
+
+export interface SystemConfig {
+  gamificationEnabled: boolean;
+  enabledLocationIds: string[];
+  audioRetentionDays: number;
+  appealEscalationDays: number;
+}
+
+export interface TrainingModule {
+  id: string;
+  category: string;
+  title: string;
+  description: string;
+  durationMinutes: number;
+}
+
+export interface BisTrackDaily {
+  locationId: string;
+  date: string;
+  sales: number;
+  transactions: number;
+  aov: number;
+  footTraffic: number;
+}
+
+export type AuditAction =
+  | "create"
+  | "update"
+  | "score_change"
+  | "status_change"
+  | "login"
+  | "export";
+
+export interface AuditEntry {
+  id: string;
+  actorId: string;
+  entityType: string;
+  entityId: string;
+  action: AuditAction;
+  description: string;
+  occurredAt: string;
+}

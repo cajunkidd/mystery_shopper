@@ -1,7 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useStore } from "../store";
+import { gamificationActiveForLocation, useStore } from "../store";
 import { formatRelative, scoreClass } from "../format";
 import type { Shop } from "../types";
+import { TrendChart } from "../components/TrendChart";
+import { BadgeChip } from "../components/BadgeChip";
 
 export default function Dashboard() {
   const { currentUser } = useStore();
@@ -45,15 +47,21 @@ function ShopRow({ shop }: { shop: Shop }) {
 }
 
 function EmployeeDashboard() {
-  const { currentUser, shops, actionPlans } = useStore();
+  const { currentUser, shops, actionPlans, userBadges, badgeCatalog, systemConfig } = useStore();
+  const gamificationOn = gamificationActiveForLocation(systemConfig, currentUser.primaryLocationId);
   const myShops = shops.filter((s) => s.evaluatedEmployeeId === currentUser.id);
   const sorted = [...myShops].sort((a, b) => b.shopDate.localeCompare(a.shopDate));
+  const chronological = [...myShops].sort((a, b) => a.shopDate.localeCompare(b.shopDate));
   const latest = sorted[0];
   const trailing3 = sorted.slice(0, 3).map((s) => s.percentage);
   const personalBest = Math.max(0, ...myShops.map((s) => s.percentage));
   const myPlans = actionPlans.filter(
     (a) => a.assignedTo === currentUser.id && a.status !== "verified",
   );
+  const myBadgeCodes = new Set(
+    userBadges.filter((b) => b.userId === currentUser.id).map((b) => b.badgeCode),
+  );
+  const earnedBadges = badgeCatalog.filter((b) => myBadgeCodes.has(b.code));
 
   return (
     <>
@@ -92,6 +100,30 @@ function EmployeeDashboard() {
           <div className="delta">to acknowledge or complete</div>
         </div>
       </div>
+
+      {chronological.length > 1 && (
+        <div className="card">
+          <h2>Score trend</h2>
+          <TrendChart
+            points={chronological.map((s) => ({
+              x: s.shopDate,
+              y: s.percentage,
+              label: `${s.percentage}%`,
+            }))}
+          />
+        </div>
+      )}
+
+      {gamificationOn && earnedBadges.length > 0 && (
+        <div className="card">
+          <h2>Your badges</h2>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {earnedBadges.map((b) => (
+              <BadgeChip key={b.code} badge={b} earned />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card">
         <h2>Recent shops</h2>

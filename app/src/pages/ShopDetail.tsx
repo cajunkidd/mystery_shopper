@@ -5,6 +5,7 @@ import { formatDate, formatRelative, scoreClass } from "../format";
 import type { ActionPlan, Appeal, Review } from "../types";
 import { AudioReview } from "../components/AudioReview";
 import { CommentThread } from "../components/CommentThread";
+import { AISummaryPanel } from "../components/AISummary";
 
 export default function ShopDetail() {
   const { id } = useParams();
@@ -108,6 +109,8 @@ export default function ShopDetail() {
             <h2>Shopper narrative</h2>
             <p style={{ margin: 0 }}>{shop.narrative}</p>
           </div>
+
+          <AISummaryPanel shop={shop} />
 
           <h2 style={{ margin: "24px 0 12px" }}>Rubric: {rubric.name}</h2>
           {rubric.sections.map((section) => {

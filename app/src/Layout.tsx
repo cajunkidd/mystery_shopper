@@ -1,41 +1,106 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useStore } from "./store";
+import { gamificationActiveForLocation, useStore } from "./store";
 import { NotificationBell } from "./components/NotificationBell";
 
 export default function Layout() {
-  const { users, currentUserId, setCurrentUserId, currentUser } = useStore();
+  const { users, currentUserId, setCurrentUserId, currentUser, systemConfig } = useStore();
 
-  const navByRole: Record<string, { to: string; label: string }[]> = {
-    employee: [
-      { to: "/", label: "My Dashboard" },
-      { to: "/shops", label: "My Shops" },
-      { to: "/action-plans", label: "Action Plans" },
-    ],
-    store_manager: [
-      { to: "/", label: "Store Dashboard" },
-      { to: "/shops", label: "Shops" },
-      { to: "/shops/new", label: "Enter Shop" },
-      { to: "/action-plans", label: "Action Plans" },
-      { to: "/appeals", label: "Appeals" },
-    ],
-    district_manager: [
-      { to: "/", label: "District Dashboard" },
-      { to: "/shops", label: "Shops" },
-      { to: "/action-plans", label: "Action Plans" },
-      { to: "/appeals", label: "Appeals" },
-    ],
-    admin: [
+  const gamificationOn = gamificationActiveForLocation(
+    systemConfig,
+    currentUser.primaryLocationId,
+  );
+
+  type Item = { to: string; label: string };
+  type Section = { label: string; items: Item[] };
+
+  const sections: Section[] = (() => {
+    if (currentUser.role === "employee") {
+      const main: Item[] = [
+        { to: "/", label: "My Dashboard" },
+        { to: "/shops", label: "My Shops" },
+        { to: "/action-plans", label: "Action Plans" },
+        { to: "/training", label: "Training" },
+        { to: "/settings", label: "Settings" },
+      ];
+      const game: Item[] = gamificationOn ? [{ to: "/me/points", label: "My Points" }] : [];
+      return [
+        { label: "Workspace", items: main },
+        ...(game.length ? [{ label: "Recognition", items: game }] : []),
+      ];
+    }
+    if (currentUser.role === "store_manager") {
+      const main: Item[] = [
+        { to: "/", label: "Store Dashboard" },
+        { to: "/shops", label: "Shops" },
+        { to: "/shops/new", label: "Enter Shop" },
+        { to: "/action-plans", label: "Action Plans" },
+        { to: "/appeals", label: "Appeals" },
+        { to: "/digest", label: "Weekly Digest" },
+        { to: "/settings", label: "Settings" },
+      ];
+      const game: Item[] = systemConfig.gamificationEnabled
+        ? [
+            { to: "/leaderboard", label: "Leagues" },
+            { to: "/challenges", label: "Challenges" },
+            { to: "/hunt", label: "The Hunt" },
+          ]
+        : [];
+      return [
+        { label: "Workspace", items: main },
+        ...(game.length ? [{ label: "Recognition", items: game }] : []),
+      ];
+    }
+    if (currentUser.role === "district_manager") {
+      const main: Item[] = [
+        { to: "/", label: "District Dashboard" },
+        { to: "/shops", label: "Shops" },
+        { to: "/action-plans", label: "Action Plans" },
+        { to: "/appeals", label: "Appeals" },
+        { to: "/analytics", label: "Analytics" },
+        { to: "/digest", label: "Weekly Digest" },
+        { to: "/settings", label: "Settings" },
+      ];
+      const game: Item[] = systemConfig.gamificationEnabled
+        ? [
+            { to: "/leaderboard", label: "Leagues" },
+            { to: "/challenges", label: "Challenges" },
+          ]
+        : [];
+      return [
+        { label: "Workspace", items: main },
+        ...(game.length ? [{ label: "Recognition", items: game }] : []),
+      ];
+    }
+    // admin
+    const main: Item[] = [
       { to: "/", label: "Company Dashboard" },
       { to: "/shops", label: "Shops" },
       { to: "/shops/new", label: "Enter Shop" },
       { to: "/action-plans", label: "Action Plans" },
       { to: "/appeals", label: "Appeals" },
+      { to: "/analytics", label: "Analytics" },
+      { to: "/digest", label: "Weekly Digest" },
+    ];
+    const admin: Item[] = [
       { to: "/admin/rubrics", label: "Rubrics" },
       { to: "/admin/users", label: "Users" },
-    ],
-  };
-
-  const items = navByRole[currentUser.role];
+      { to: "/admin/import", label: "Agency Import" },
+      { to: "/admin/config", label: "System Config" },
+      { to: "/admin/audit", label: "Audit Log" },
+    ];
+    const game: Item[] = systemConfig.gamificationEnabled
+      ? [
+          { to: "/leaderboard", label: "Leagues" },
+          { to: "/challenges", label: "Challenges" },
+          { to: "/hunt", label: "The Hunt" },
+        ]
+      : [];
+    return [
+      { label: "Workspace", items: main },
+      ...(game.length ? [{ label: "Recognition", items: game }] : []),
+      { label: "Admin", items: admin },
+    ];
+  })();
 
   return (
     <div className="shell">
@@ -43,7 +108,7 @@ export default function Layout() {
         <div className="brand">
           STINE<span className="accent"> · </span>Mystery Shop
         </div>
-        <span className="who">Phase 1 demo · in-memory data</span>
+        <span className="who">Phase 1–4 demo · in-memory data</span>
         <div className="spacer" />
         <NotificationBell />
         <span className="who">Acting as</span>
@@ -63,18 +128,22 @@ export default function Layout() {
       </header>
 
       <nav className="sidebar">
-        <div className="nav-section">Navigation</div>
-        {items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            className={({ isActive }) =>
-              "nav-item" + (isActive ? " active" : "")
-            }
-          >
-            {item.label}
-          </NavLink>
+        {sections.map((sec) => (
+          <div key={sec.label}>
+            <div className="nav-section">{sec.label}</div>
+            {sec.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                className={({ isActive }) =>
+                  "nav-item" + (isActive ? " active" : "")
+                }
+              >
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 
