@@ -92,6 +92,15 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 - **District dashboard endpoint** — roll-up across stores in a district with open-appeal counter.
 - **Unit tests** — `npm run test` exercises the scoring engine and points engine (17 tests covering yes/no, scale, multi-choice, streak bonus capping, improvement threshold, manager bonus).
 
+## Latest additions
+
+- **Conditional logic** — rubric questions can carry `{ requireCommentIf: <value> }` or `{ requireCommentIfIn: [...] }`. Wizard validates client-side; the API revalidates on submit and returns `400 conditional_logic_failed`.
+- **Per-question photo attachments** — managers can attach photos to individual rubric answers from the shop detail page; thumbnails render inline.
+- **Hunt mechanic (§6.5)** — admin can create a Hunt campaign window with scenarios; managers record reveals, which award 50 hunt-reveal points + notify the recognized employee.
+- **Self-serve data export (§11)** — `/me/export` returns the employee's full data as JSON; an "Download my data" button on the employee dashboard.
+- **Gamification admin** — `/admin/gamification` page with tabs for Leagues, Challenges, and Hunt campaigns.
+- **Rubric drag-and-drop** — sections and questions can be reordered via native HTML5 DnD (drafts only).
+
 ## What's now implemented (Phase 4 partial)
 
 - **AI comment summarization** — per-shop developmental summary (`summary` + `strengths` + `improvements`) and per-location theme clustering. Uses Anthropic SDK, `claude-sonnet-4-6`, adaptive thinking, structured outputs (json_schema), and a `cache_control` breakpoint on the stable system prompt for prompt caching. Vitest verifies the cache breakpoint is on the system block, not on the volatile per-shop content.

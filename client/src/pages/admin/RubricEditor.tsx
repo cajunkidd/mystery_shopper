@@ -39,6 +39,8 @@ export default function RubricEditor() {
   const [sections, setSections] = useState<Section[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragSection, setDragSection] = useState<number | null>(null);
+  const [dragQ, setDragQ] = useState<{ sIdx: number; qIdx: number } | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -90,6 +92,24 @@ export default function RubricEditor() {
     updateSection(sIdx, { questions: sections[sIdx].questions.filter((_, i) => i !== qIdx) });
   }
 
+  function reorderSections(from: number, to: number) {
+    if (from === to) return;
+    setSections((s) => {
+      const out = [...s];
+      const [moved] = out.splice(from, 1);
+      out.splice(to, 0, moved);
+      return out.map((sec, i) => ({ ...sec, displayOrder: i + 1 }));
+    });
+  }
+  function reorderQuestions(sIdx: number, from: number, to: number) {
+    if (from === to) return;
+    const sec = sections[sIdx];
+    const out = [...sec.questions];
+    const [moved] = out.splice(from, 1);
+    out.splice(to, 0, moved);
+    updateSection(sIdx, { questions: out.map((q, i) => ({ ...q, displayOrder: i + 1 })) });
+  }
+
   async function save() {
     if (!rubric) return;
     setBusy(true);
@@ -136,8 +156,22 @@ export default function RubricEditor() {
       </div>
 
       {sections.map((section, sIdx) => (
-        <div key={sIdx} className="card space-y-3">
-          <div className="flex items-center justify-between gap-2">
+        <div
+          key={sIdx}
+          className={`card space-y-3 ${dragSection === sIdx ? "opacity-60" : ""}`}
+          draggable={!locked}
+          onDragStart={() => setDragSection(sIdx)}
+          onDragOver={(e) => {
+            if (dragSection != null && dragSection !== sIdx) e.preventDefault();
+          }}
+          onDrop={() => {
+            if (dragSection != null) reorderSections(dragSection, sIdx);
+            setDragSection(null);
+          }}
+          onDragEnd={() => setDragSection(null)}
+        >
+          <div className="flex items-center gap-2">
+            {!locked && <span className="cursor-grab text-slate-300 select-none" title="Drag to reorder">⋮⋮</span>}
             <input
               className="input flex-1 font-medium"
               value={section.name}
@@ -151,7 +185,27 @@ export default function RubricEditor() {
             )}
           </div>
           {section.questions.map((q, qIdx) => (
-            <div key={qIdx} className="border-l-2 border-slate-200 pl-3 space-y-2">
+            <div
+              key={qIdx}
+              className={`border-l-2 border-slate-200 pl-3 space-y-2 ${dragQ?.sIdx === sIdx && dragQ.qIdx === qIdx ? "opacity-60" : ""}`}
+              draggable={!locked}
+              onDragStart={(e) => {
+                e.stopPropagation();
+                setDragQ({ sIdx, qIdx });
+              }}
+              onDragOver={(e) => {
+                if (dragQ?.sIdx === sIdx && dragQ.qIdx !== qIdx) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }
+              }}
+              onDrop={(e) => {
+                e.stopPropagation();
+                if (dragQ?.sIdx === sIdx) reorderQuestions(sIdx, dragQ.qIdx, qIdx);
+                setDragQ(null);
+              }}
+              onDragEnd={() => setDragQ(null)}
+            >
               <textarea
                 className="input"
                 rows={2}

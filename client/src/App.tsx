@@ -16,6 +16,7 @@ import RubricEditor from "./pages/admin/RubricEditor";
 import Users from "./pages/admin/Users";
 import AuditLog from "./pages/admin/AuditLog";
 import CsvImport from "./pages/admin/CsvImport";
+import GamificationAdmin from "./pages/admin/Gamification";
 
 function Require({ roles, children }: { roles?: Role[]; children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -95,6 +96,14 @@ export default function App() {
           element={
             <Require roles={["admin"]}>
               <CsvImport />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/gamification"
+          element={
+            <Require roles={["admin"]}>
+              <GamificationAdmin />
             </Require>
           }
         />

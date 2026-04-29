@@ -17,6 +17,8 @@ import aiRoutes from "./routes/ai.js";
 import importRoutes from "./routes/imports.js";
 import leagueRoutes from "./routes/leagues.js";
 import adminRoutes from "./routes/admin.js";
+import huntRoutes from "./routes/hunt.js";
+import meRoutes from "./routes/me.js";
 
 const app = express();
 
@@ -41,6 +43,8 @@ app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1", aiRoutes);
 app.use("/api/v1", importRoutes);
 app.use("/api/v1", leagueRoutes);
+app.use("/api/v1", huntRoutes);
+app.use("/api/v1", meRoutes);
 app.use("/api/v1/admin", adminRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

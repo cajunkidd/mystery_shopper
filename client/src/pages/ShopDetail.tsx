@@ -20,7 +20,8 @@ interface Shop {
   location: { name: string; code: string };
   evaluatedEmployee: { id: string; fullName: string } | null;
   createdBy: { fullName: string };
-  answers: { id: string; questionId: string; answerValue: unknown; scoreAwarded: number; comment: string | null }[];
+  attachments?: { id: string; shopAnswerId: string | null; mimeType: string; originalName: string }[];
+  answers: { id: string; questionId: string; answerValue: unknown; scoreAwarded: number; comment: string | null; attachments?: { id: string; mimeType: string; originalName: string }[] }[];
   comments: { id: string; body: string; createdAt: string; audioTimestampSeconds: number | null; author: { fullName: string } }[];
   review: {
     id: string;
@@ -133,6 +134,16 @@ export default function ShopDetail() {
                       </span>
                     </div>
                     {a?.comment && <div className="text-xs text-slate-500 italic">"{a.comment}"</div>}
+                    <AnswerAttachments
+                      shopId={shop.id}
+                      answerId={a?.id}
+                      attachments={a?.attachments ?? []}
+                      canEdit={canReview}
+                      onChange={async () => {
+                        const r = await api<{ shop: Shop }>(`/shops/${shop.id}`);
+                        setShop(r.shop);
+                      }}
+                    />
                   </li>
                 );
               })}
@@ -266,6 +277,103 @@ export default function ShopDetail() {
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+function AnswerAttachments({
+  shopId,
+  answerId,
+  attachments,
+  canEdit,
+  onChange,
+}: {
+  shopId: string;
+  answerId: string | undefined;
+  attachments: { id: string; mimeType: string; originalName: string }[];
+  canEdit: boolean;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    const next: Record<string, string> = {};
+    const promises = attachments
+      .filter((a) => a.mimeType.startsWith("image/"))
+      .map(async (a) => {
+        const t = localStorage.getItem("token");
+        const r = await fetch(`/api/v1/attachments/${a.id}/file`, {
+          headers: t ? { Authorization: `Bearer ${t}` } : {},
+        });
+        if (r.ok) {
+          const blob = await r.blob();
+          if (!cancelled) next[a.id] = URL.createObjectURL(blob);
+        }
+      });
+    Promise.all(promises).then(() => {
+      if (!cancelled) setThumbs(next);
+    });
+    return () => {
+      cancelled = true;
+      Object.values(next).forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, [attachments]);
+
+  async function upload(file: File) {
+    if (!answerId) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("shopAnswerId", answerId);
+      const t = localStorage.getItem("token");
+      await fetch(`/api/v1/shops/${shopId}/attachments`, {
+        method: "POST",
+        body: fd,
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+      });
+      onChange();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (attachments.length === 0 && !canEdit) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-2 items-center">
+      {attachments.map((a) => (
+        <a
+          key={a.id}
+          href={thumbs[a.id]}
+          target="_blank"
+          rel="noreferrer"
+          className="block border border-slate-200 rounded p-1 text-xs"
+          title={a.originalName}
+        >
+          {a.mimeType.startsWith("image/") && thumbs[a.id] ? (
+            <img src={thumbs[a.id]} alt="" className="h-12 w-12 object-cover rounded" />
+          ) : (
+            <span className="text-slate-500">{a.originalName.slice(0, 16)}</span>
+          )}
+        </a>
+      ))}
+      {canEdit && answerId && (
+        <label className="text-xs text-stine-600 hover:underline cursor-pointer">
+          {busy ? "Uploading…" : "+ Add photo"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            disabled={busy}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload(f);
+            }}
+          />
+        </label>
       )}
     </div>
   );

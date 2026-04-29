@@ -13,6 +13,7 @@ interface Question {
   maxScore: number;
   required: boolean;
   options?: { value: string; label?: string; score?: number }[] | null;
+  conditionalLogic?: { requireCommentIf?: unknown; requireCommentIfIn?: unknown[] } | null;
   displayOrder: number;
 }
 interface Section { id: string; name: string; displayOrder: number; questions: Question[] }
@@ -95,8 +96,29 @@ export default function ShopWizard() {
     }));
   }
 
+  function commentRequired(q: Question, value: unknown): boolean {
+    const cl = q.conditionalLogic;
+    if (!cl) return false;
+    if (cl.requireCommentIf !== undefined) return value === cl.requireCommentIf;
+    if (Array.isArray(cl.requireCommentIfIn)) return cl.requireCommentIfIn.includes(value);
+    return false;
+  }
+
   async function submit(asDraft: boolean) {
     if (!fullRubric) return;
+    if (!asDraft) {
+      // Run client-side conditional-logic check before posting (server validates too).
+      for (const s of fullRubric.sections) {
+        for (const q of s.questions) {
+          const a = answers[q.id];
+          if (commentRequired(q, a?.value) && (!a?.comment || !a.comment.trim())) {
+            setError(`A comment is required for: "${q.text}"`);
+            setStep(3);
+            return;
+          }
+        }
+      }
+    }
     setBusy(true);
     setError(null);
     try {
@@ -291,12 +313,18 @@ export default function ShopWizard() {
                         onChange={(e) => update(q.id, { value: e.target.value })}
                       />
                     )}
-                    <input
-                      className="input mt-2 text-sm"
-                      placeholder="Note (optional)"
-                      value={answers[q.id]?.comment ?? ""}
-                      onChange={(e) => update(q.id, { comment: e.target.value })}
-                    />
+                    {(() => {
+                      const needsComment = commentRequired(q, answers[q.id]?.value);
+                      const hasComment = !!answers[q.id]?.comment?.trim();
+                      return (
+                        <input
+                          className={`input mt-2 text-sm ${needsComment && !hasComment ? "border-rose-400 ring-1 ring-rose-200" : ""}`}
+                          placeholder={needsComment ? "Note required for this answer" : "Note (optional)"}
+                          value={answers[q.id]?.comment ?? ""}
+                          onChange={(e) => update(q.id, { comment: e.target.value })}
+                        />
+                      );
+                    })()}
                   </div>
                 </div>
               ))}

@@ -51,11 +51,31 @@ export default function Dashboard() {
 
   if (!user) return null;
 
+  async function downloadMyData() {
+    const t = localStorage.getItem("token");
+    const r = await fetch("/api/v1/me/export", {
+      headers: t ? { Authorization: `Bearer ${t}` } : {},
+    });
+    if (!r.ok) return;
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `stine-mystery-shop-data.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (user.role === "employee") {
     if (!empData) return <p className="text-slate-500">Loading…</p>;
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Welcome, {user.fullName.split(" ")[0]}</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">Welcome, {user.fullName.split(" ")[0]}</h1>
+          <button className="btn-secondary text-xs" onClick={downloadMyData}>
+            Download my data
+          </button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Tile label="Latest" value={empData.latest ? `${empData.latest.percentage.toFixed(0)}%` : "—"} hint={empData.latest?.shopDate.slice(0, 10)} />
           <Tile label="Trailing avg (3)" value={`${empData.trailingAvg.toFixed(0)}%`} />

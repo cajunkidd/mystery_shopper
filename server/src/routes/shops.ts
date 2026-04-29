@@ -5,6 +5,7 @@ import { prisma } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { computeShopTotals } from "../scoring.js";
 import { notify } from "../notifications.js";
+import { validateAnswer, type ConditionalLogic } from "../conditional.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -50,7 +51,8 @@ router.get("/:id", async (req, res) => {
       location: true,
       evaluatedEmployee: { select: { id: true, fullName: true, email: true } },
       createdBy: { select: { id: true, fullName: true } },
-      answers: true,
+      answers: { include: { attachments: { select: { id: true, mimeType: true, originalName: true } } } },
+      attachments: { select: { id: true, shopAnswerId: true, mimeType: true, originalName: true } },
       review: { include: { reviewer: { select: { id: true, fullName: true } } } },
       actionPlans: { include: { assignedTo: { select: { id: true, fullName: true } } } },
       appeals: true,
@@ -107,6 +109,27 @@ router.post("/", async (req, res) => {
   if (!rubric) return res.status(404).json({ error: "rubric_not_found" });
 
   const allQuestions = rubric.sections.flatMap((s) => s.questions);
+
+  // Conditional-logic validation runs only on submit, not on draft saves.
+  if (data.submit) {
+    const byId = new Map(allQuestions.map((q) => [q.id, q]));
+    for (const a of data.answers) {
+      const q = byId.get(a.questionId);
+      if (!q) continue;
+      const v = validateAnswer(q.conditionalLogic as ConditionalLogic, {
+        answerValue: a.answerValue,
+        comment: a.comment ?? null,
+      });
+      if (!v.ok) {
+        return res.status(400).json({
+          error: "conditional_logic_failed",
+          questionId: a.questionId,
+          reason: v.reason,
+        });
+      }
+    }
+  }
+
   const totals = computeShopTotals(allQuestions, data.answers);
 
   const shop = await prisma.shop.create({
