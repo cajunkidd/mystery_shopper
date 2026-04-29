@@ -84,6 +84,23 @@ router.post("/action-plans/:id/complete", async (req, res) => {
   res.json({ actionPlan: updated });
 });
 
+// Bulk verify — accepts up to 100 action plan IDs at once. Manager+ only;
+// each plan must be in 'completed' state to flip to 'verified'.
+const bulkVerifyBody = z.object({ ids: z.array(z.string().uuid()).min(1).max(100) });
+router.post(
+  "/action-plans/bulk-verify",
+  requireRole("store_manager", "district_manager", "admin"),
+  async (req, res) => {
+    const parsed = bulkVerifyBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    const result = await prisma.actionPlan.updateMany({
+      where: { id: { in: parsed.data.ids }, status: "completed" },
+      data: { status: "verified", verifiedAt: new Date() },
+    });
+    res.json({ verified: result.count });
+  },
+);
+
 const verifyBody = z.object({ verificationNotes: z.string().optional() });
 router.post("/action-plans/:id/verify", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = verifyBody.safeParse(req.body);

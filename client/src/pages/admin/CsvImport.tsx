@@ -11,6 +11,86 @@ interface Preview {
   sample: Record<string, string>[];
 }
 
+interface PdfPreviewResult {
+  fields: {
+    locationCodeOrName: string | null;
+    shopDate: string | null;
+    shopperName: string | null;
+    shopperExternalRef: string | null;
+    narrative: string | null;
+    type: string | null;
+  };
+  locationId: string | null;
+}
+
+function PdfPreview() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<PdfPreviewResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function upload(file: File) {
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const token = localStorage.getItem("token");
+      const r = await fetch("/api/v1/imports/pdf-preview", {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!r.ok) {
+        if (r.status === 503) setError("AI is not configured (ANTHROPIC_API_KEY missing).");
+        else setError(`Preview failed (${r.status}).`);
+        return;
+      }
+      setResult(await r.json());
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card space-y-3">
+      <h3 className="font-medium">Phase 4: agency PDF preview (Anthropic-powered)</h3>
+      <p className="text-xs text-slate-500">
+        Drop a single-shop PDF report. We extract location, date, shopper, and narrative; per-question scoring still
+        needs the CSV mapping flow.
+      </p>
+      <input
+        type="file"
+        accept="application/pdf"
+        disabled={busy}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) upload(f);
+        }}
+      />
+      {busy && <p className="text-sm text-slate-500">Calling Claude…</p>}
+      {error && <p className="text-sm text-rose-600">{error}</p>}
+      {result && (
+        <div className="text-sm space-y-1">
+          <div>Location: <span className="font-mono">{result.fields.locationCodeOrName ?? "—"}</span> {result.locationId ? "✓" : <span className="text-rose-600">no match in DB</span>}</div>
+          <div>Date: <span className="font-mono">{result.fields.shopDate ?? "—"}</span></div>
+          <div>Shopper: <span className="font-mono">{result.fields.shopperName ?? "—"}</span></div>
+          <div>Agency ref: <span className="font-mono">{result.fields.shopperExternalRef ?? "—"}</span></div>
+          <div>Type: <span className="font-mono">{result.fields.type ?? "—"}</span></div>
+          {result.fields.narrative && (
+            <div>
+              Narrative:
+              <p className="text-xs text-slate-600 italic mt-1 whitespace-pre-wrap">{result.fields.narrative}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CsvImport() {
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
   const [rubricId, setRubricId] = useState("");
@@ -104,6 +184,8 @@ export default function CsvImport() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">CSV import</h1>
+
+      <PdfPreview />
 
       <div className="card space-y-3">
         <div>

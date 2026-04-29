@@ -152,6 +152,76 @@ export async function clusterThemes(scope: string, shops: ThemeShop[]): Promise<
   return JSON.parse(text.text) as ThemeAnalysis;
 }
 
+const PDF_IMPORT_SYSTEM = `You extract mystery-shop reports from PDFs supplied by external agencies.
+
+The PDF is a single shop report. Pull out the location code or name, shop date, shopper name (if present), shopper agency reference id (if present), and the shopper's overall narrative. Be conservative — when a field isn't clearly stated in the document, return null for it instead of guessing.
+
+Output strictly valid JSON matching the schema. No prose outside the JSON.`;
+
+export interface ImportedShopFields {
+  locationCodeOrName: string | null;
+  shopDate: string | null;
+  shopperName: string | null;
+  shopperExternalRef: string | null;
+  narrative: string | null;
+  type: "visit" | "call" | "web_inquiry" | "social_inquiry" | null;
+}
+
+export async function extractShopFromPdf(base64Pdf: string): Promise<ImportedShopFields> {
+  if (!process.env.ANTHROPIC_API_KEY) throw new Error("anthropic_api_key_missing");
+  const response = await client().messages.create({
+    model: MODEL,
+    max_tokens: 1024,
+    thinking: { type: "adaptive" },
+    system: [
+      {
+        type: "text",
+        text: PDF_IMPORT_SYSTEM,
+        cache_control: { type: "ephemeral" },
+      },
+    ],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            locationCodeOrName: { type: ["string", "null"] },
+            shopDate: { type: ["string", "null"], description: "ISO 8601 date" },
+            shopperName: { type: ["string", "null"] },
+            shopperExternalRef: { type: ["string", "null"] },
+            narrative: { type: ["string", "null"] },
+            type: {
+              type: ["string", "null"],
+              enum: ["visit", "call", "web_inquiry", "social_inquiry", null],
+            },
+          },
+          required: ["locationCodeOrName", "shopDate", "shopperName", "shopperExternalRef", "narrative", "type"],
+          additionalProperties: false,
+        },
+      },
+    },
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "document",
+            source: { type: "base64", media_type: "application/pdf", data: base64Pdf },
+          },
+          {
+            type: "text",
+            text: "Extract the fields described in the schema from this mystery-shop report.",
+          },
+        ],
+      },
+    ],
+  });
+  const text = response.content.find((b) => b.type === "text");
+  if (!text || text.type !== "text") throw new Error("ai_empty_response");
+  return JSON.parse(text.text) as ImportedShopFields;
+}
+
 function renderShopForPrompt(shop: ShopForSummary): string {
   const answers = shop.answers
     .slice(0, 30)

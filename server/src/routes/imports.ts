@@ -8,6 +8,7 @@ import { upload } from "../uploads.js";
 import fs from "node:fs";
 import crypto from "node:crypto";
 import { uploadPath } from "../uploads.js";
+import { extractShopFromPdf } from "../ai.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -187,6 +188,35 @@ router.post("/imports/users", requireRole("admin"), async (req, res) => {
     }
   }
   res.json({ created, errors });
+});
+
+// Phase 4: agency PDF preview. Anthropic extracts top-level fields; the admin
+// reviews them before importing. Heavy answer-by-question extraction is kept
+// out of scope for now — those still require the rubric column-mapping path.
+router.post("/imports/pdf-preview", requireRole("admin"), upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "no_file" });
+  const path = uploadPath(req.file.filename);
+  try {
+    const buf = fs.readFileSync(path);
+    const base64 = buf.toString("base64");
+    const fields = await extractShopFromPdf(base64);
+    let locationId: string | null = null;
+    if (fields.locationCodeOrName) {
+      const ref = fields.locationCodeOrName.trim();
+      const byCode = await prisma.location.findFirst({ where: { code: ref } });
+      const match = byCode ?? (await prisma.location.findFirst({ where: { name: { equals: ref, mode: "insensitive" } } }));
+      locationId = match?.id ?? null;
+    }
+    res.json({ fields, locationId });
+  } catch (e) {
+    if ((e as Error).message === "anthropic_api_key_missing") {
+      return res.status(503).json({ error: "ai_not_configured" });
+    }
+    console.error(e);
+    res.status(502).json({ error: "ai_failed" });
+  } finally {
+    if (fs.existsSync(path)) fs.unlinkSync(path);
+  }
 });
 
 export default router;

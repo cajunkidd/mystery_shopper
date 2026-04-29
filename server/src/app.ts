@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import locationRoutes from "./routes/locations.js";
@@ -27,8 +29,27 @@ const startedAt = Date.now();
 
 export function buildApp(): express.Express {
   const app = express();
+  // Trust proxy in deploy environments (X-Forwarded-For from a load balancer);
+  // disabled in tests so express-rate-limit doesn't complain about the loopback.
+  if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173", credentials: true }));
   app.use(express.json({ limit: "5mb" }));
+
+  // Mount a tight rate limit on the login route only — the rest of the API
+  // is gated by JWT and the points/badges endpoints aren't worth abusing.
+  if (process.env.NODE_ENV !== "test") {
+    app.use(
+      "/api/v1/auth/login",
+      rateLimit({
+        windowMs: 5 * 60 * 1000,
+        limit: 20,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { error: "rate_limited" },
+      }),
+    );
+  }
 
   app.get("/api/v1/health", async (_req, res) => {
     const t0 = Date.now();

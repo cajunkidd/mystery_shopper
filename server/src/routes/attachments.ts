@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { prisma } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { upload, uploadPath, UPLOAD_DIR } from "../uploads.js";
+import { audioRetentionDays } from "../config.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -16,6 +17,7 @@ router.post("/shops/:id/attachments", upload.single("file"), async (req, res) =>
 
   const isAudio = req.file.mimetype.startsWith("audio/");
   const setAsAudio = req.body.role === "audio" || (isAudio && shop.type === "call");
+  const retentionDays = await audioRetentionDays();
 
   const attachment = await prisma.attachment.create({
     data: {
@@ -26,7 +28,7 @@ router.post("/shops/:id/attachments", upload.single("file"), async (req, res) =>
       mimeType: req.file.mimetype,
       fileSizeBytes: req.file.size,
       uploadedById: req.user!.id,
-      retentionUntil: isAudio ? new Date(Date.now() + 365 * 86400 * 1000) : null,
+      retentionUntil: isAudio ? new Date(Date.now() + retentionDays * 86400 * 1000) : null,
     },
   });
   if (setAsAudio) {

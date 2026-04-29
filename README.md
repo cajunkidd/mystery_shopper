@@ -94,6 +94,13 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Security middleware** — `helmet()` is on by default; `/auth/login` has a per-IP rate limit of 20 requests / 5 minutes (skipped in tests). Set `TRUST_PROXY=1` behind a load balancer.
+- **Phase 4 PDF agency import** — `POST /imports/pdf-preview` sends the uploaded PDF to Anthropic (vision-capable Sonnet) with a structured-outputs schema and returns the extracted location code/name, date, shopper, narrative, and type. Surfaced as a "Phase 4: agency PDF preview" card on `/admin/import`.
+- **Configurable retention via SystemConfig** — new `config.ts` reads `audio.retention_days`, `appeal.escalation_days`, `gamification.enabled` from the SystemConfig table (60s in-process cache; sane defaults). New `/admin/config` UI exposes them with help text per setting.
+- **Bulk verify action plans** — `POST /action-plans/bulk-verify` accepts up to 100 IDs at a time. UI button on `/action-plans` flips all currently-completed plans in one call.
+
+## Earlier additions
+
 - **Audit log expansion (§11)** — now writes entries on appeal `status_change`, rubric `status_change` (activate / retire), shop `export_pdf`, user `self_data_export`, and user `role_change` / `deactivate` / `reactivate`. The admin viewer at `/admin/audit-log` already filters by entity type.
 - **Rubric duplicate** — `POST /rubrics/:id/duplicate` creates a draft of the next version with all sections + questions copied. Surfaced as a "Duplicate" button on the Rubrics admin page.
 - **League tier UI** — admin form now sets `tier`; the list sorts by tier ascending and shows a "rolled over" badge once the period rollover has happened.

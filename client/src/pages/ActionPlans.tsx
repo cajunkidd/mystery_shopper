@@ -51,9 +51,33 @@ export default function ActionPlans() {
   }
 
   if (!filtered || !user) return <p className="text-slate-500">Loading…</p>;
+
+  const canVerify = ["store_manager", "district_manager", "admin"].includes(user.role);
+  const completedIds = filtered.filter((p) => p.status === "completed").map((p) => p.id);
+  async function bulkVerify() {
+    if (completedIds.length === 0) return;
+    setBusy("bulk");
+    try {
+      await api("/action-plans/bulk-verify", {
+        method: "POST",
+        body: JSON.stringify({ ids: completedIds }),
+      });
+      load();
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Action plans</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Action plans</h1>
+        {canVerify && completedIds.length > 0 && (
+          <button className="btn-primary text-sm" disabled={busy === "bulk"} onClick={bulkVerify}>
+            Verify {completedIds.length} completed
+          </button>
+        )}
+      </div>
       <div className="card flex flex-wrap items-end gap-3">
         {user.role !== "employee" && (
           <div>

@@ -24,6 +24,7 @@ const NAV: NavItem[] = [
   { to: "/admin/training", label: "Modules", roles: ["admin"] },
   { to: "/admin/calibration", label: "Calibration", roles: ["admin", "district_manager"] },
   { to: "/admin/audit-log", label: "Audit", roles: ["admin"] },
+  { to: "/admin/config", label: "Config", roles: ["admin"] },
 ];
 
 export default function Layout() {
