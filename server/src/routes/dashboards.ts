@@ -39,10 +39,18 @@ router.get("/location/:id", async (req, res) => {
     take: 100,
     include: { evaluatedEmployee: { select: { id: true, fullName: true } } },
   });
+  // Oldest-pending first: a shop submitted 6 days ago should be reviewed
+  // before one submitted yesterday. Stable secondary sort on shopDate.
   const queue = await prisma.shop.findMany({
     where: { locationId: req.params.id, status: { in: ["submitted", "under_review"] } },
-    orderBy: { submittedAt: "desc" },
-    include: { evaluatedEmployee: { select: { id: true, fullName: true } } },
+    orderBy: [{ submittedAt: "asc" }, { shopDate: "asc" }],
+    select: {
+      id: true,
+      shopDate: true,
+      submittedAt: true,
+      type: true,
+      evaluatedEmployee: { select: { id: true, fullName: true } },
+    },
   });
   const avg = shops.length ? shops.reduce((a, s) => a + s.percentage, 0) / shops.length : 0;
   res.json({ avgPercentage: avg, queue, recent: shops });

@@ -94,6 +94,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Schema indexes on hot paths** — composite indexes on `Shop(locationId, status)`, `Shop(evaluatedEmployeeId, shopDate)`, `Shop(shopDate)`, `ActionPlan(assignedToId, status)`, and `ActionPlan(status, dueDate)`. The action-plan ones in particular speed up the hourly overdue scan.
+- **Bulk AI summary for managers** — `POST /shops/bulk-summary` (manager+ only) takes up to 10 shop IDs, runs `summarizeShop` in parallel, returns per-shop summary or error. Manager dashboard exposes a "Summarize first N" button on the review queue; results render inline with sentiment badges.
+- **Manager review queue priority** — queue now sorts oldest-pending-first (`submittedAt asc`) and the dashboard surfaces an aging badge: 0–1 day = grey, 2–4 = amber, 5+ = rose. Makes a 6-day-old shop visible without scrolling past last night's submissions.
+
+## Earlier additions
+
 - **Test coverage for new logic** — 10 new tests:
   * `extractShopFromPdf` posts the PDF as a base64 document block (not in the cached system prompt) and the schema requires every field; throws when `ANTHROPIC_API_KEY` is missing.
   * Audit fan-out: rubric activate/retire, appeal resolve, user role-change, deactivate, and the negative case (no audit entry when only `fullName` changes).

@@ -200,6 +200,12 @@ model Shop {
   actionPlans ActionPlan[]
   appeals     Appeal[]
   comments    Comment[]
+
+  // Hot query paths: dashboards filter by location + status, employee-facing
+  // queries filter by evaluated employee + date, district roll-ups span date.
+  @@index([locationId, status])
+  @@index([evaluatedEmployeeId, shopDate])
+  @@index([shopDate])
 }
 
 model ShopAnswer {
@@ -274,6 +280,10 @@ model ActionPlan {
   updatedAt         DateTime         @updatedAt
 
   comments Comment[]
+
+  // Hot paths: scheduler scans status+dueDate; employee dashboards scan assignedToId+status.
+  @@index([assignedToId, status])
+  @@index([status, dueDate])
 }
 
 model Appeal {
@@ -348,18 +358,18 @@ model UserBadge {
 }
 
 model League {
-  id            String   @id @default(uuid())
-  name          String
-  tier          Int      @default(1)
-  periodStart   DateTime
-  periodEnd     DateTime
-  storeIds      String[]
-  rolledOverAt  DateTime?
-  createdAt     DateTime @default(now())
+  id           String    @id @default(uuid())
+  name         String
+  tier         Int       @default(1)
+  periodStart  DateTime
+  periodEnd    DateTime
+  storeIds     String[]
+  rolledOverAt DateTime?
+  createdAt    DateTime  @default(now())
 }
 
 model Challenge {
-  id          String    @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   description String?
   startsAt    DateTime
@@ -367,20 +377,20 @@ model Challenge {
   metric      String
   category    String?
   threshold   Float?
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
 
   participations ChallengeParticipation[]
 }
 
 model ChallengeParticipation {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   challengeId  String
   challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
   locationId   String
-  currentValue Float    @default(0)
-  targetValue  Float    @default(0)
-  completed    Boolean  @default(false)
+  currentValue Float     @default(0)
+  targetValue  Float     @default(0)
+  completed    Boolean   @default(false)
 
   @@unique([challengeId, locationId])
 }
@@ -394,7 +404,7 @@ model HuntCampaign {
   scenarios   Json?
   active      Boolean  @default(true)
 
-  reveals     HuntReveal[]
+  reveals HuntReveal[]
 }
 
 model TrainingModule {
@@ -408,19 +418,19 @@ model TrainingModule {
   active             Boolean  @default(true)
   createdAt          DateTime @default(now())
 
-  assignments        TrainingAssignment[]
+  assignments TrainingAssignment[]
 }
 
 model TrainingAssignment {
-  id               String   @id @default(uuid())
+  id               String         @id @default(uuid())
   userId           String
   trainingModuleId String
   trainingModule   TrainingModule @relation(fields: [trainingModuleId], references: [id])
   shopId           String?
-  status           String   @default("assigned")
+  status           String         @default("assigned")
   triggerSection   String?
   triggerScorePct  Float?
-  assignedAt       DateTime @default(now())
+  assignedAt       DateTime       @default(now())
   completedAt      DateTime?
   verifiedAt       DateTime?
   retestShopId     String?
@@ -429,36 +439,36 @@ model TrainingAssignment {
 }
 
 model CalibrationSession {
-  id        String   @id @default(uuid())
-  name      String
-  notes     String?
+  id          String   @id @default(uuid())
+  name        String
+  notes       String?
   createdById String
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
-  entries   CalibrationEntry[]
+  entries CalibrationEntry[]
 }
 
 model CalibrationEntry {
-  id                  String   @id @default(uuid())
-  sessionId           String
-  session             CalibrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  shopId              String
-  reviewerId          String
-  scorePercentage     Float
-  notes               String?
-  submittedAt         DateTime @default(now())
+  id              String             @id @default(uuid())
+  sessionId       String
+  session         CalibrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shopId          String
+  reviewerId      String
+  scorePercentage Float
+  notes           String?
+  submittedAt     DateTime           @default(now())
 
   @@unique([sessionId, shopId, reviewerId])
 }
 
 model HuntReveal {
-  id                       String   @id @default(uuid())
-  huntCampaignId           String
-  huntCampaign             HuntCampaign @relation(fields: [huntCampaignId], references: [id], onDelete: Cascade)
-  shopId                   String
-  recognizedEmployeeId     String
-  identifiedByEmployees    String[]
-  revealedAt               DateTime @default(now())
+  id                    String       @id @default(uuid())
+  huntCampaignId        String
+  huntCampaign          HuntCampaign @relation(fields: [huntCampaignId], references: [id], onDelete: Cascade)
+  shopId                String
+  recognizedEmployeeId  String
+  identifiedByEmployees String[]
+  revealedAt            DateTime     @default(now())
 }
 
 model AuditLog {
