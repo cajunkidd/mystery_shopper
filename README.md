@@ -1,43 +1,27 @@
 # Stine Mystery Shop & Caller Performance Platform
 
-Internal app for managing mystery shop and mystery caller evaluations across Stine LLC's 14 locations. See `STINE_MYSTERY_SHOP_APP_SPEC.md` for the authoritative build spec.
+Internal app for managing mystery-shop and mystery-caller evaluations across Stine LLC's 14 locations. See `STINE_MYSTERY_SHOP_APP_SPEC.md` for the authoritative build spec.
 
-**Status:** Phases 1–3 + parts of Phase 4. Includes Phase 4 Anthropic-powered comment summarization, agency CSV import, audit log + admin viewer, leagues, challenges, and the district dashboard.
+**Status:** Phases 1–3 (Core, Audio Review, Gamification) plus most of Phase 4 (AI summaries + theme clustering, sentiment, agency CSV + PDF import, microlearning loop). The base app is feature-complete against the spec apart from the explicit out-of-scope items at the bottom of this file.
 
 ## Stack
 
-- **Backend** (`server/`): Node + TypeScript, Express, Prisma ORM, PostgreSQL, JWT auth, Zod validation, PDFKit
-- **Frontend** (`client/`): React + TypeScript, Vite, Tailwind, React Router
+- **Server** (`server/`): Node 20 + TypeScript, Express, Prisma ORM, PostgreSQL, JWT auth, Zod validation, helmet + rate-limit, multer, PDFKit, Anthropic SDK
+- **Client** (`client/`): React 18 + TypeScript, Vite, Tailwind, React Router, vitest + RTL
+- **Tests:** 87 total (71 server + 16 client)
 
-## Repo layout
-
-```
-server/                     Express API
-  prisma/schema.prisma      Phase 1 + skeleton for later phases (gamification, audit, etc.)
-  prisma/seed.ts            14 locations + sample users + visit/call rubrics
-  src/routes/               auth, users, locations, rubrics, shops, reviews, action plans, appeals, comments, dashboards
-  src/scoring.ts            Score calculation per question type
-  src/auth.ts               JWT + role middleware
-
-client/                     React SPA
-  src/pages/                Login, Dashboard, ShopList, ShopWizard, ShopDetail, ActionPlans, Appeals
-  src/pages/admin/          Rubrics, RubricEditor, Users
-  src/components/Layout.tsx Top-nav layout shell with role-aware nav
-  src/auth.tsx              Auth context
-```
-
-## Getting started
+## Quickstart
 
 ### Prerequisites
 
 - Node 20+
-- A running PostgreSQL instance (local Docker is fine)
+- PostgreSQL 14+ (local Docker is fine)
 
 ### Backend
 
 ```bash
 cd server
-cp .env.example .env       # set DATABASE_URL and JWT_SECRET
+cp .env.example .env       # set DATABASE_URL and JWT_SECRET; ANTHROPIC_API_KEY is optional
 npm install
 npm run prisma:generate
 npm run prisma:migrate     # creates the database schema
@@ -51,212 +35,172 @@ npm run dev                # API on http://localhost:4000
 ```bash
 cd client
 npm install
-npm run dev                # http://localhost:5173
+npm run dev                # http://localhost:5173 — proxies /api to :4000
 ```
-
-The Vite dev server proxies `/api` to `http://localhost:4000`.
 
 ### Docker (one-command bring-up)
 
 ```bash
 docker compose up --build
-# web at http://localhost:8080, api at http://localhost:4000, postgres at :5432
+# web → http://localhost:8080, api → http://localhost:4000, postgres → :5432
 docker compose exec api npm run seed       # one-time
 docker compose exec api npm run seed:demo  # optional sample data
 ```
 
-`docker-compose.yml` boots Postgres + the API + an nginx-served SPA. The API container runs `prisma migrate deploy` on startup, so you don't need to migrate manually. Set `ANTHROPIC_API_KEY` in your shell to enable the AI features.
+`docker-compose.yml` boots Postgres + the API + an nginx-served SPA. The API container runs `prisma migrate deploy` on startup, so you don't need to migrate manually. Pass `ANTHROPIC_API_KEY` from your shell environment to enable the AI features.
+
+## Environment
+
+| Variable             | Required | Default                  | Notes                                                |
+| -------------------- | -------- | ------------------------ | ---------------------------------------------------- |
+| `DATABASE_URL`       | yes      | —                        | Postgres connection string                           |
+| `JWT_SECRET`         | yes      | —                        | Sign secret for session JWTs (7-day expiry)          |
+| `CLIENT_ORIGIN`      | no       | `http://localhost:5173`  | CORS origin allowlist                                |
+| `ANTHROPIC_API_KEY`  | no       | —                        | Enables `/shops/:id/summary`, theme clustering, PDF import (else 503) |
+| `ANTHROPIC_MODEL`    | no       | `claude-sonnet-4-6`      | Per spec §6.9 ("most current Sonnet")                |
+| `TRUST_PROXY`        | no       | unset                    | Set to `1` behind a load balancer                    |
+| `SCHEDULER_DISABLED` | no       | unset                    | Set to `1` to skip the in-process scheduler          |
+| `PORT`               | no       | `4000`                   | API port                                             |
 
 ## Seeded test users
 
-| Email                            | Password       | Role             |
-|----------------------------------|----------------|------------------|
-| kyle@stine.test                  | admin1234      | admin            |
-| manager.sulphur@stine.test       | manager1234    | store_manager    |
-| manager.lc@stine.test            | manager1234    | store_manager    |
-| district.sw@stine.test           | district1234   | district_manager |
-| alex.employee@stine.test         | employee1234   | employee         |
-| robin.employee@stine.test        | employee1234   | employee         |
-| casey.employee@stine.test        | employee1234   | employee         |
+| Email                        | Password       | Role             |
+|------------------------------|----------------|------------------|
+| kyle@stine.test              | admin1234      | admin            |
+| manager.sulphur@stine.test   | manager1234    | store_manager    |
+| manager.lc@stine.test        | manager1234    | store_manager    |
+| district.sw@stine.test       | district1234   | district_manager |
+| alex.employee@stine.test     | employee1234   | employee         |
+| robin.employee@stine.test    | employee1234   | employee         |
+| casey.employee@stine.test    | employee1234   | employee         |
 
 ## Phase 1 acceptance walkthrough
 
-1. Sign in as `manager.sulphur@stine.test`, click **Enter Shop**, run the wizard for an Alex / Robin shop, submit.
+1. Sign in as `manager.sulphur@stine.test`. Click **Enter Shop**, run the wizard for an Alex / Robin shop, submit.
 2. Sign in as `alex.employee@stine.test` — see the shop in your list and dashboard tiles.
-3. Back as the manager, open the shop, fill **Manager review**, add an action plan, click **Mark review complete**.
+3. Back as the manager, open the shop. Fill **Manager review**, add an action plan, click **Mark review complete**.
 4. As Alex, **Acknowledge** and **Mark complete** the action plan; optionally **File an appeal**.
 5. Manager resolves the appeal under **Appeals**.
 6. **Export PDF** from any shop detail page.
 
-## Environment
+## Repo layout
 
-Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI summary + theme features (otherwise those endpoints return 503). Defaults to `claude-sonnet-4-6` per spec §6.9; override via `ANTHROPIC_MODEL`.
+```
+server/
+  prisma/schema.prisma          25 models — see §4 of the spec
+  prisma/seed.ts                base seed (locations, users, rubrics, badges)
+  prisma/seed-demo.ts           idempotent demo data (sample shops, plans, etc.)
+  src/index.ts, app.ts          Express bootstrap + buildApp() for tests
+  src/auth.ts                   JWT + role middleware
+  src/scoring.ts                per-question type scoring (yes_no, scale_1_5, etc.)
+  src/conditional.ts            requireCommentIf / requireCommentIfIn
+  src/points.ts, badges.ts      Phase 3 points engine + badge evaluator
+  src/leagues.ts                Phase 3 league rollover (top 3 + most-improved)
+  src/microlearning.ts          Phase 4 auto-assign training on low section scores
+  src/calibration.ts            Phase 3 reviewer-agreement math (§13)
+  src/ai.ts                     Anthropic SDK wrapper (cached system prompt)
+  src/jobs.ts                   hourly scheduler: overdue plans, retention, digests, league rollover
+  src/audit.ts, logging.ts      audit trail + request logging
+  src/uploads.ts, config.ts     multer + SystemConfig-backed runtime config
+  src/routes/                   30+ route files, mostly /api/v1/*
+  src/*.test.ts                 71 vitest tests
 
-## What's now implemented (beyond Phase 1)
+client/
+  src/main.tsx, App.tsx         React Router + ErrorBoundary + lazy admin pages
+  src/auth.tsx, api.ts          JWT auth context + fetch wrapper
+  src/components/Layout.tsx     top nav + employee mobile bottom nav
+  src/components/AudioReview*   §6.7 player with click-to-seek anchored comments
+  src/components/NotificationBell.tsx
+  src/lib/{csv,aging}.ts        extracted utilities (also tested)
+  src/pages/                    employee-facing pages
+  src/pages/admin/              admin pages (lazy-loaded)
+  src/**/*.test.{ts,tsx}        16 vitest + RTL tests
+```
 
-- **Attachments** — multer-backed file upload + retrieval, with role gating (employees can only access caller audio after manager release, per §6.7).
-- **Phase 2 audio review** — caller shops have an audio upload + waveform-style player with click-to-seek time-anchored comments.
-- **Phase 3 points engine** — runs on review-complete: `shop_score × type-multiplier × streak-bonus`, plus improvement bonus, plus manager bonus. Append-only ledger (§10 anti-pattern: no mutation).
-- **Phase 3 badges** — Veteran / Centurion / Phone Pro / Comeback Kid / Bounce Back, evaluated on review-complete and permanent.
-- **Leaderboard** — top 3 + most-improved only (no bottom-of-pack rankings, per §10).
-- **Notifications** — in-app bell with unread counter; triggers wired for shop submitted, review completed, action plan assigned, badge earned.
-- **Heatmap** — locations × rubric sections, color-coded; filterable by shop type. Available to managers and above.
-- **District dashboard endpoint** — roll-up across stores in a district with open-appeal counter.
-- **Unit tests** — `npm run test` exercises the scoring engine and points engine (17 tests covering yes/no, scale, multi-choice, streak bonus capping, improvement threshold, manager bonus).
+## What's built
 
-## Latest additions
+The full Phase 1–3 surface plus most of Phase 4. Quick tour by spec section:
 
-- **GitHub Actions CI** — `.github/workflows/ci.yml` runs on every push and PR to `main`. Two jobs: server (`prisma generate`, `typecheck`, `vitest`) and client (`tsc --noEmit`, `vitest`, `vite build`). Both jobs use Node 20 with cached `npm ci`.
-- **Request logging** — one line per response in dev/prod (skipped in tests and on `/health` to keep load-balancer probes out of the log): `2026-04-29T10:21:33.412Z  POST   /api/v1/shops                   201  147ms`. 5xx logs go to `console.error` so they're easier to grep.
-- **`/api/v1/version`** — returns `{ version, node }` read once at startup from `package.json`. Surfaced on the admin overview status card so operators can confirm what's deployed without shelling into the box.
+- §4 **Data model** — 25 Prisma models covering core, gamification, audit, calibration, training, hunt
+- §5 **API** — `/api/v1/_routes` enumerates the surface; auto-generated from Express's router stack
+- §6.1 **Rubric builder** — admin UI with drag-and-drop reordering, conditional logic, photo/audio question types, draft → activate → retire (versioned), duplicate-as-new-draft
+- §6.2 **Shop entry** — 5-step wizard, draft save, conditional-logic validation, per-question photo/audio uploads
+- §6.3 **Manager review** — review queue (oldest-first, with aging badges), score adjustment + audited justification, manager bonus, action plans, AI summary panel
+- §6.4 **Employee view** — dashboard with personal-best + trailing-3 + open action plans, shop list, appeals
+- §6.5 **Gamification** — append-only PointsLedger, badges (permanent), leagues with auto-promotion at period-end, challenges, Hunt campaigns + employee guessing, leaderboards (top 3 + most-improved per §10)
+- §6.6 **Dashboards** — employee, store, district, company; heatmap (location × section)
+- §6.7 **Audio review** — multer upload, audio player with timestamp-anchored comments, manager-release gating
+- §6.8 **PDF export** — branded per-shop PDF including answers, narrative, manager summary, action plans
+- §6.9 **AI** — `summarizeShop` (developmental summary + sentiment), `clusterThemes`, `extractShopFromPdf` agency import. Adaptive thinking, structured outputs, prompt caching on the stable system prompt
+- §7 **UI/UX** — mobile-first employee bottom nav, no bottom-of-pack rankings, additive points (no decay)
+- §8 **Notifications** — in-app bell; user-level email/sms preferences (forward-looking)
+- §9 **Permissions** — role middleware enforces the matrix; supertest covers the matrix
+- §11 **Privacy** — audit log on score changes/exports/role changes/deactivations; configurable retention via SystemConfig; self-serve `/me/export`
+- §12 **Imports** — CSV + Anthropic-powered PDF preview
+- §13 **Calibration** — sessions + entries + average-delta math with the 8-point pass/fail threshold
+- §14 **Out of scope** — respected (no recruiting, no GPS, no multi-language, no e-commerce)
 
-## Earlier additions
+## What's not built
 
-- **Docker setup** — `server/Dockerfile` (multi-stage Node 20 → slim runtime; runs `prisma migrate deploy` on boot), `client/Dockerfile` (build → nginx serving the SPA with `/api` proxied to the API container), and a `docker-compose.yml` that wires Postgres + API + nginx in one `docker compose up --build`. README has the one-command bring-up.
-- **Response compression** — `compression()` is on for JSON. Filters out audio / PDF / image streams so we don't waste CPU double-compressing already-compressed binaries. Real wire-byte savings on the bigger endpoints (audit log, shop list, dashboards).
-- **Login: hide dev seed credentials in production** — the help line listing seeded passwords is now gated on `import.meta.env.DEV`, so prod builds don't leak them under the form. Also added `vite/client` reference so `import.meta.env` is properly typed.
+These items are either deferred or genuinely out of scope:
 
-## Earlier additions
+- **BisTrack integration (§4 Phase 4)** — needs the actual data pipeline at Stine; placeholder only
+- **Real email / SMS sending** — `notifyByEmail` / `notifyBySms` toggles exist; no SMTP / Twilio wiring
+- **Multi-instance scheduling** — current scheduler runs in-process via `setInterval`; for >1 replica use pg-cron or BullMQ
+- **Generated Prisma migration files** — `prisma migrate dev` requires a real Postgres to generate. The Docker image runs `prisma migrate deploy` with whatever's in `prisma/migrations/`, which is currently empty — first deploy needs a `prisma migrate dev --name init` against a fresh DB
+- **OpenAPI spec** — auto `GET /_routes` is the lighter substitute
+- **More component RTL tests** — coverage exists for NotFound / Login / Settings; the rest of the UI has unit-level coverage on extracted utilities (CSV, aging) plus the integration / lifecycle / audit-fanout tests on the server side
 
-- **Audit log: friendly labels** — `GET /admin/audit-log` now resolves the actor (`fullName <email>`) in one batched lookup and the entity in a per-row resolver: users → `Name <email>`, rubrics → `Name (type vN)`, reviews → `Review of LOC YYYY-MM-DD`, appeals → `Appeal on LOC YYYY-MM-DD`, shops → `LOC YYYY-MM-DD`. Deleted entities render as a slate-italic "deleted (UUID-prefix)" so the row is still useful. The admin page surfaces the new labels instead of UUID prefixes.
-- **Third RTL test** — `Settings.test.tsx` mocks `useAuth` and the API helper, asserts the user identity card renders the seeded name + email + the §11 "Download my data" button, and asserts that flipping the SMS toggle PATCHes `/me/preferences` with the right body. **87 tests total** (71 server + 16 client).
+Confirm before launch (per spec §15):
 
-## Earlier additions
-
-- **Demo data seed** — `npm run seed:demo` populates 8 sample shops across 2 employees and 2 locations (mixing high / okay / poor scores), an in-progress review on the most recent submission, an overdue + an open action plan, an open appeal, a training module + auto-style assignment, and a league. Idempotent: re-running wipes prior `demo:`-tagged rows first. Makes a fresh install immediately interactive.
-- **Mobile bottom nav for employees (§7)** — sticky bottom bar on `<sm` breakpoints with 4 large tap targets: Dashboard, Shops, Recognition, Training. Renders only for employees per spec (§7: mobile-first for employees, desktop-first acceptable for managers/admin). The desktop top nav still works on larger screens.
-
-## Earlier additions
-
-- **User picker for bulk reassign** — replaced the rough `prompt()` with a proper expandable card on `/action-plans`: select an active employee, see their email next to their name, click Reassign. Backend `GET /users` now accepts `?at=<locationId>` and lets store managers list employees at their own location (admin/district still see all).
-- **Settings exposes data export** — the §11 "right to know" download is now reachable from `/settings` with a one-line rationale, not just the employee dashboard.
-- **Cache headers on static lookups** — `GET /locations` is `Cache-Control: private, max-age=300`; `GET /rubrics` is `private, max-age=60`. Cuts wizard-load chatter without ever serving a stale active rubric for more than a minute.
-
-## Earlier additions
-
-- **Pagination UI** — `GET /admin/audit-log` now returns a `nextBefore` cursor (ISO timestamp of the oldest row in the page); the audit-log page exposes a "Load older entries" button that uses it. Shop list does page-based fetching: each "Load more shops" click bumps `?limit` by 50.
-- **Bulk reassign action plans** — `POST /action-plans/bulk-reassign` flips up to 100 plans to a new assignee in one updateMany; sends a single rolled-up notification to the target. UI button on `/action-plans` ("Reassign all open") prompts for the target user id and calls it.
-- **Second RTL component test** — `Login.test.tsx` mocks `useAuth`, asserts the submit button reads "Signing in…" while the in-flight promise hasn't resolved, and asserts the rose error message appears when login rejects. Found and fixed an a11y bug along the way: Login's `<label>`s weren't associated with their inputs (no `htmlFor`/`id`). **85 tests total** (71 server + 14 client).
-
-## Earlier additions
-
-- **Admin overview page** at `/admin` — at-a-glance tiles for users (active/total), locations, graded shops + queue, action plans + overdue, open appeals, badges earned, training open, active rubrics, active leagues, audit entries in the last 24h. Each tile links to its detail page. Includes a system-status card (DB latency, AI config, scheduler) and a "Run scheduler now" button that calls `POST /admin/jobs/run` and shows the job result inline.
-- **`/health` enrichment** — now reports `ai.configured` (whether `ANTHROPIC_API_KEY` is set), `ai.model`, and `scheduler.enabled`. Useful for k8s liveness/readiness probes and the new admin overview.
-- **First RTL component test** — `NotFound.test.tsx` exercises rendering inside a `MemoryRouter` and asserts on the headline + the back-to-dashboard link's `href`. Proves the React-Testing-Library / jsdom path works for components, not just utilities. **83 tests total** (71 server + 12 client).
-
-## Earlier additions
-
-- **Photo / audio question types in the wizard** — `photo_required` and `audio_required` rubric questions now show a file input during entry. The file is held in client state through the wizard, and after the shop is created the wizard fetches its `answer.id`s and uploads each file to the matching answer via the existing attachments endpoint. Validation: a `photo_required` or `audio_required` question marked `required` blocks submit until a file is attached. Running-score helper credits these answers as max-points-on-presence (parity with the server's `scoreAnswer`).
-
-## Earlier additions
-
-- **404 page + global error boundary** — unknown routes render a friendly Not Found page instead of breaking out of the layout. A React `ErrorBoundary` wraps the whole app: a thrown render error shows a recovery card with Reload / Try-again instead of a blank screen.
-- **`GET /api/v1/_routes`** — walks Express's router stack and emits `{ method, path }` for every registered route. Cheap auto-documentation for engineers who don't want to read the source.
-- **Frontend test setup** — vitest with jsdom is wired up; 11 client tests cover the extracted CSV row parser and the manager review-queue aging helper. Reusable utilities moved into `client/src/lib/` so the same code is exercised by both unit tests and the dashboard / import widgets. **82 tests total** (71 server, 11 client).
-
-## Earlier additions
-
-- **Compare two shops** — `/shops/compare?a=X&b=Y` puts two shops side-by-side: header tiles, per-section delta table, per-question score deltas. Refuses to render when the two shops use different rubrics (the comparison would be apples-to-oranges). "Compare with…" picker on shop detail surfaces this when an employee has prior shops to pick from.
-- **Code-split admin pages** — admin routes + the new compare page are lazy-loaded via `React.lazy` + `Suspense`. Initial JS bundle dropped from **283 kB → 240 kB** (gzip 79 → 71). Each admin page is its own ~2–10 kB chunk.
-
-## Earlier additions
-
-- **League standings UI** — `/admin/leagues/:id` surfaces top 3 by default with the §10 rationale rendered inline. "Reveal full standings" button is admin-only and labeled as "internal calibration only — never share outside leadership," so the punitive-display anti-pattern is hard to fall into accidentally.
-- **Action-plan verification with notes** — when a manager clicks Verify, an inline form appears for optional `verificationNotes` before the confirmation. Backend already accepted them; UI now wires them through.
-- **General comment thread on shops** — shop detail gained a Discussion panel listing non-time-anchored comments and a textarea to add new ones. Audio-anchored comments still render in the AudioReview player as before; the new section lists everything else (managers + employees can both contribute).
-
-## Earlier additions
-
-- **Schema indexes on hot paths** — composite indexes on `Shop(locationId, status)`, `Shop(evaluatedEmployeeId, shopDate)`, `Shop(shopDate)`, `ActionPlan(assignedToId, status)`, and `ActionPlan(status, dueDate)`. The action-plan ones in particular speed up the hourly overdue scan.
-- **Bulk AI summary for managers** — `POST /shops/bulk-summary` (manager+ only) takes up to 10 shop IDs, runs `summarizeShop` in parallel, returns per-shop summary or error. Manager dashboard exposes a "Summarize first N" button on the review queue; results render inline with sentiment badges.
-- **Manager review queue priority** — queue now sorts oldest-pending-first (`submittedAt asc`) and the dashboard surfaces an aging badge: 0–1 day = grey, 2–4 = amber, 5+ = rose. Makes a 6-day-old shop visible without scrolling past last night's submissions.
-
-## Earlier additions
-
-- **Test coverage for new logic** — 10 new tests:
-  * `extractShopFromPdf` posts the PDF as a base64 document block (not in the cached system prompt) and the schema requires every field; throws when `ANTHROPIC_API_KEY` is missing.
-  * Audit fan-out: rubric activate/retire, appeal resolve, user role-change, deactivate, and the negative case (no audit entry when only `fullName` changes).
-- **Notification preferences (§8)** — `User` gained `notifyByEmail` (default true) and `notifyBySms` (default false). New `/me/preferences` GET/PATCH endpoints. Settings page at `/settings` reachable from the user-name area in the header. In-app channel is always on per §8; toggles take effect when email / SMS infrastructure is wired up.
-
-**71 vitest tests pass** (up from 61).
-
-## Earlier additions
-
-- **Security middleware** — `helmet()` is on by default; `/auth/login` has a per-IP rate limit of 20 requests / 5 minutes (skipped in tests). Set `TRUST_PROXY=1` behind a load balancer.
-- **Phase 4 PDF agency import** — `POST /imports/pdf-preview` sends the uploaded PDF to Anthropic (vision-capable Sonnet) with a structured-outputs schema and returns the extracted location code/name, date, shopper, narrative, and type. Surfaced as a "Phase 4: agency PDF preview" card on `/admin/import`.
-- **Configurable retention via SystemConfig** — new `config.ts` reads `audio.retention_days`, `appeal.escalation_days`, `gamification.enabled` from the SystemConfig table (60s in-process cache; sane defaults). New `/admin/config` UI exposes them with help text per setting.
-- **Bulk verify action plans** — `POST /action-plans/bulk-verify` accepts up to 100 IDs at a time. UI button on `/action-plans` flips all currently-completed plans in one call.
-
-## Earlier additions
-
-- **Audit log expansion (§11)** — now writes entries on appeal `status_change`, rubric `status_change` (activate / retire), shop `export_pdf`, user `self_data_export`, and user `role_change` / `deactivate` / `reactivate`. The admin viewer at `/admin/audit-log` already filters by entity type.
-- **Rubric duplicate** — `POST /rubrics/:id/duplicate` creates a draft of the next version with all sections + questions copied. Surfaced as a "Duplicate" button on the Rubrics admin page.
-- **League tier UI** — admin form now sets `tier`; the list sorts by tier ascending and shows a "rolled over" badge once the period rollover has happened.
-- **Richer health endpoint** — `/health` now reports `uptimeSeconds`, `db: "ok"|"error"`, and `dbLatencyMs` (does a `SELECT 1` per call). Useful for k8s liveness/readiness or external uptime probes.
-
-## Earlier additions
-
-- **League auto-promotion at period end (§6.5)** — `League` gained `tier` and `rolledOverAt`. Hourly scheduler calls `rolloverLeagues` which, for each adjacent tier pair, swaps the lowest-avg store in the upper tier with the highest-avg store in the next tier down. Idempotent via `rolledOverAt`. 3 tests cover the no-op, swap, and idempotency cases.
-- **Retest auto-evaluation** — when a manager links a retest shop to a training assignment, the server computes that shop's percentage on the trigger section and notifies the employee if it improved by ≥10 points.
-- **Action plan + training co-creation** — when training is auto-assigned during review-complete, an action plan referencing the training module is also created so the employee sees one unified queue. 2 tests cover the with-reviewer and without-reviewer paths.
-- **Action plan filters** — `/action-plans` now offers scope (mine / assigned by me / all in scope) and status filters in the UI.
-- **More integration tests** — coverage for: forbidding store managers from CSV user import, district managers from rubric activate, employees from running jobs, plus rejection of wrong-secret / non-existent-user / expired tokens. **61 tests total.**
-
-## Earlier additions
-
-- **Training-module admin UI** — `/admin/training`: create, edit, activate/deactivate training modules. The `rubricSectionMatch` field is what auto-assignment keys off.
-- **Retest linking** — managers can link a follow-up shop to a verified or completed training assignment from the Training page; the assignment then renders a "retest →" link to the new shop.
-- **Bulk user CSV import** — Users page has a "+ Bulk import users from CSV" expandable. Each row's temporary password is returned in-memory only (never persisted in plain) so the admin can hand it out and rotate.
-- **Calibration shop picker** — Calibration detail now offers a select-from-list instead of typing UUIDs.
-- **Shop list filters** — date range (`from`/`to`), status, and type filters surfaced in the UI; backend already supported them.
-
-## Earlier additions
-
-- **Microlearning loop (§6.9)** — `TrainingModule` registry; on review-complete, sections scoring below 70% auto-assign the matching module (matched by section name). 5 unit tests cover the threshold, double-assign guard, and missing-module skip.
-- **Hunt employee guessing (§6.5)** — employees can guess which past shop was a Hunt; correct guesses earn 10 points (no penalty for wrong guesses, per §10). One guess per campaign per employee, enforced server-side.
-- **Manager weekly digest (§8)** — scheduler now generates an in-app digest notification once a week per store manager: shop count + average, queue size, open appeals, open action plans.
-- **End-to-end lifecycle test** — supertest exercises shop submit → review → action plan → acknowledge → appeal → resolve, asserting on the in-memory state after each step. 50 vitest tests total.
-
-## Earlier additions
-
-- **Scheduled jobs** — runs every hour: action plans past their due date flip to `overdue` (notifying employee + manager), 3-day reminders go out once per plan, and attachments past `retentionUntil` are deleted from disk + the `audioFileId` pointer cleared. Disable in tests via `SCHEDULER_DISABLED=1`. Manual trigger at `POST /admin/jobs/run`.
-- **Calibration check (§13)** — admin creates a calibration session; reviewers submit independent scores; `summarizeCalibration()` computes per-shop deltas and an average. Pass/fail UI badge applies the §13 8-point threshold.
-- **AI sentiment** — the AI summary now includes `sentiment` (positive/neutral/negative). Surfaced as a colored badge on the shop detail; lets managers prioritize negative narratives per spec §6.9.
-- **Integration tests** — supertest exercises the live Express stack with the prisma client mocked. Covers token validation, role gating on `/admin/audit-log`, and rejection of deactivated users. 38 tests total.
-
-## Earlier additions
-
-- **Conditional logic** — rubric questions can carry `{ requireCommentIf: <value> }` or `{ requireCommentIfIn: [...] }`. Wizard validates client-side; the API revalidates on submit and returns `400 conditional_logic_failed`.
-- **Per-question photo attachments** — managers can attach photos to individual rubric answers from the shop detail page; thumbnails render inline.
-- **Hunt mechanic (§6.5)** — admin can create a Hunt campaign window with scenarios; managers record reveals, which award 50 hunt-reveal points + notify the recognized employee.
-- **Self-serve data export (§11)** — `/me/export` returns the employee's full data as JSON; an "Download my data" button on the employee dashboard.
-- **Gamification admin** — `/admin/gamification` page with tabs for Leagues, Challenges, and Hunt campaigns.
-- **Rubric drag-and-drop** — sections and questions can be reordered via native HTML5 DnD (drafts only).
-
-## What's now implemented (Phase 4 partial)
-
-- **AI comment summarization** — per-shop developmental summary (`summary` + `strengths` + `improvements`) and per-location theme clustering. Uses Anthropic SDK, `claude-sonnet-4-6`, adaptive thinking, structured outputs (json_schema), and a `cache_control` breakpoint on the stable system prompt for prompt caching. Vitest verifies the cache breakpoint is on the system block, not on the volatile per-shop content.
-- **Agency CSV import** — admin upload → header preview → column mapping (location code, date, narrative, employee email, rubric questions) → bulk shop creation, with per-row error reporting.
-- **Audit log** — admin viewer at `/admin/audit-log`. Score adjustments on reviews are written via the audit helper.
-- **District dashboard** — `/districts/:name` rolls up shop count, open appeals, and per-store averages.
-- **Leagues + challenges** — schema + CRUD endpoints. Standings respect §10 (top 3 + most-improved only).
-
-## What's still intentionally not here
-
-- **Phase 3b** — "The Hunt" mechanic (schema is in place, no UI/routes yet).
-- **League auto-promotion/demotion** — the cron job to apply standings at quarter-end is not implemented.
-- **Phase 4** — BisTrack integration, microlearning training modules, scheduled email digests.
-- **Email / SMS** — spec calls for them; this slice is in-app only.
-- **Rubric drag-and-drop** — basic add/remove only.
-- **Per-question photo/audio attachments in the wizard** — attachments work for shop-level audio (Phase 2) but the wizard doesn't surface per-question uploads.
-
-## Open spec questions (from §15) deferred
-
-These need answers from Kyle / HR before production:
-
-1. Source of mystery shop data going forward (agency PDF/email/CSV?)
-2. Where mystery caller recordings live today
+1. Source of mystery-shop data (agency PDF / email / CSV?)
+2. Where mystery-caller recordings live today
 3. Appeal escalation authority (default: store_manager → district_manager)
 4. Existing recognition programs the gamification layer should feed
 5. Calibration owner for reviewer agreement
 6. HR sign-off on employee notice + acknowledgment forms
+
+## Tests
+
+```bash
+cd server && npm test     # 71 vitest tests, ~2s
+cd client && npm test     # 16 vitest tests, ~3s
+```
+
+CI runs both jobs on every push / PR — see `.github/workflows/ci.yml`.
+
+## Operations
+
+- **Health:** `GET /api/v1/health` returns `ok`, DB latency, AI configured-or-not, scheduler enabled-or-not. Use for k8s liveness/readiness.
+- **Version:** `GET /api/v1/version` returns `{ version, node }`.
+- **Routes:** `GET /api/v1/_routes` enumerates every registered endpoint.
+- **Admin overview:** `/admin` in the UI shows operational counts + a "Run scheduler now" button.
+- **Logs:** one line per response with method/path/status/ms; 5xx routes to `console.error`.
+
+## Changelog
+
+Built across many small passes; see `git log` for the chronological detail. The high-level milestones, in order:
+
+1. Phase 1 MVP scaffold (auth, rubric authoring, shop wizard, manager review, action plans, appeals, dashboards, PDF export)
+2. Phase 2 audio review + Phase 3 gamification core (points engine, badges, leaderboard, notifications, heatmap)
+3. Phase 4 partial: Anthropic AI summaries, agency CSV import, audit log, leagues, challenges, district dashboard
+4. Conditional logic, Hunt mechanic, self-serve data export, gamification admin, rubric drag-and-drop
+5. Scheduled jobs (overdue plans, retention, digests), calibration, AI sentiment, integration tests
+6. Microlearning loop, Hunt employee guessing, weekly digest, end-to-end lifecycle test
+7. Training-module admin, retest linking, calibration shop picker, bulk user import, shop list filters
+8. League auto-promotion, retest auto-evaluation, training+plan co-creation, more permission tests
+9. Audit-log expansion + admin viewer, rubric duplicate, league tier UI, richer health endpoint
+10. Helmet + login rate limit, Phase 4 PDF agency import, configurable retention, bulk verify
+11. Tests for PDF extract + audit fan-out, notification preferences
+12. Schema indexes, bulk AI summary, oldest-first review queue
+13. League standings UI, verification notes, shop comment thread
+14. Compare two shops side-by-side, code-split admin pages
+15. 404 + ErrorBoundary, frontend test setup, `/_routes` auto-doc
+16. Wizard photo/audio file inputs (closes wizard rubric coverage)
+17. Admin overview, `/health` enrichment, first RTL component test
+18. Pagination, bulk reassign, second RTL test (and an a11y fix on Login)
+19. User picker for bulk reassign, settings data export, cache headers
+20. Demo seed + mobile bottom nav for employees
+21. Friendly audit-log labels + Settings RTL test
+22. Docker setup, response compression, prod-gate dev creds
+23. GitHub Actions CI, request logging, `/version` endpoint
