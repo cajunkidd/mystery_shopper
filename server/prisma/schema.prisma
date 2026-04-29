@@ -505,3 +505,23 @@ model Notification {
 
   @@index([userId, read, createdAt])
 }
+
+// Deferred-email outbox. Rows are written when a notification fires for a
+// user that has notifyByEmail = true. A future SMTP / SES integration drains
+// this table by claiming undelivered rows and marking them sentAt. Until that
+// integration ships, rows just queue up and admins can inspect them at
+// /admin/outbox to validate volume + content.
+model EmailOutbox {
+  id          String   @id @default(uuid())
+  userId      String
+  toEmail     String
+  subject     String
+  body        String
+  link        String?
+  createdAt   DateTime @default(now())
+  sentAt      DateTime?
+  failedAt    DateTime?
+  failedReason String?
+
+  @@index([sentAt, createdAt])
+}

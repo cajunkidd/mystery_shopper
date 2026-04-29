@@ -146,6 +146,22 @@ router.get("/config", async (_req, res) => {
   res.json({ items });
 });
 
+// Deferred-email outbox: until SMTP is wired, rows are queued by notify()
+// and admins can inspect them here to confirm volume and content.
+router.get("/outbox", async (req, res) => {
+  const status = (req.query.status as string | undefined) ?? "pending";
+  const where: Record<string, unknown> = {};
+  if (status === "pending") where.sentAt = null;
+  else if (status === "sent") where.sentAt = { not: null };
+  else if (status === "failed") where.failedAt = { not: null };
+  const items = await prisma.emailOutbox.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: Math.min(Number(req.query.limit ?? 100), 500),
+  });
+  res.json({ items });
+});
+
 const configBody = z.object({ value: z.unknown() });
 router.patch("/config/:key", async (req, res) => {
   const parsed = configBody.safeParse(req.body);

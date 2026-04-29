@@ -420,3 +420,18 @@ CREATE TABLE "Notification" (
 );
 CREATE INDEX "Notification_userId_read_createdAt_idx" ON "Notification"("userId", "read", "createdAt");
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+CREATE TABLE "EmailOutbox" (
+  "id" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "toEmail" TEXT NOT NULL,
+  "subject" TEXT NOT NULL,
+  "body" TEXT NOT NULL,
+  "link" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "sentAt" TIMESTAMP(3),
+  "failedAt" TIMESTAMP(3),
+  "failedReason" TEXT,
+  CONSTRAINT "EmailOutbox_pkey" PRIMARY KEY ("id")
+);
+CREATE INDEX "EmailOutbox_sentAt_createdAt_idx" ON "EmailOutbox"("sentAt", "createdAt");

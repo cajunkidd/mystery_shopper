@@ -47,6 +47,85 @@ function readBuildVersion(): { version: string; node: string } {
 }
 const BUILD_VERSION = readBuildVersion();
 
+// Hand-curated descriptions for the most-used endpoints. Keys are
+// "METHOD /full/path"; missing entries surface as null on /_routes.
+const ROUTE_DESCRIPTIONS: Record<string, string> = {
+  // auth
+  "POST /api/v1/auth/login": "Exchange email + password for a JWT (7-day expiry)",
+  "POST /api/v1/auth/logout": "Stateless: client drops its token",
+  "GET /api/v1/auth/me": "Current authenticated user",
+  // me
+  "GET /api/v1/me/preferences": "Per-user notification channel toggles",
+  "PATCH /api/v1/me/preferences": "Update notification channel toggles",
+  "GET /api/v1/me/permissions": "§9 capabilities for the current user's role",
+  "GET /api/v1/me/export": "§11 self-serve data export as JSON",
+  // shops
+  "GET /api/v1/shops": "List shops (filterable by status/type/from/to/q/locationId/evaluatedEmployeeId)",
+  "POST /api/v1/shops": "Create a shop (manual entry; pass submit:true to route to a manager)",
+  "GET /api/v1/shops/:id": "Shop detail with rubric, answers, comments, action plans, appeals",
+  "POST /api/v1/shops/:id/submit": "Move a draft shop to under_review",
+  "GET /api/v1/shops/:id/pdf": "Branded per-shop PDF (logged in audit)",
+  "POST /api/v1/shops/:id/summary": "AI summary + sentiment (manager+ only)",
+  "POST /api/v1/shops/bulk-summary": "Bulk AI summary for up to 10 shops",
+  "POST /api/v1/shops/:id/attachments": "Upload an attachment (per-shop or per-answer)",
+  "POST /api/v1/shops/:id/comments": "Add a comment (general or audio-anchored via audioTimestampSeconds)",
+  "POST /api/v1/shops/:id/review": "Open or claim a review",
+  "POST /api/v1/shops/:id/action-plans": "Create an action plan tied to this shop",
+  "POST /api/v1/shops/:id/appeals": "Employee files an appeal on their own shop",
+  // reviews
+  "PATCH /api/v1/reviews/:id": "Update review (summary, score adjustment, bonus)",
+  "POST /api/v1/reviews/:id/complete": "Mark review complete; awards points + evaluates badges + auto-assigns training",
+  // action plans
+  "GET /api/v1/action-plans": "List action plans (?scope=mine|assigned-by-me)",
+  "POST /api/v1/action-plans/:id/acknowledge": "Employee acknowledges",
+  "POST /api/v1/action-plans/:id/complete": "Employee marks complete",
+  "POST /api/v1/action-plans/:id/verify": "Manager verifies (with optional verificationNotes)",
+  "POST /api/v1/action-plans/bulk-verify": "Verify up to 100 completed plans at once",
+  "POST /api/v1/action-plans/bulk-reassign": "Reassign up to 100 plans to a different employee",
+  // appeals
+  "GET /api/v1/appeals": "List appeals (?scope=open)",
+  "POST /api/v1/appeals/:id/resolve": "Resolve an appeal (audited)",
+  "POST /api/v1/appeals/:id/escalate": "Escalate to district manager",
+  // dashboards
+  "GET /api/v1/dashboards/me": "Employee dashboard (personal best, trend, latest, plans)",
+  "GET /api/v1/dashboards/location/:id": "Store dashboard (queue, recent, avg)",
+  "GET /api/v1/dashboards/district/:district": "District roll-up",
+  "GET /api/v1/dashboards/company": "Company-wide roll-up (admin only)",
+  "GET /api/v1/dashboards/heatmap": "Locations × rubric sections heatmap",
+  // gamification
+  "GET /api/v1/gamification/me": "Points + badges for current user",
+  "GET /api/v1/gamification/leaderboard": "Top 3 + most-improved (?scope=store|district|company)",
+  "GET /api/v1/gamification/badges": "List all active badges",
+  // hunt
+  "GET /api/v1/hunt/active": "Active Hunt campaigns",
+  "POST /api/v1/hunt/campaigns/:id/reveal": "Manager records a successful reveal",
+  "POST /api/v1/hunt/campaigns/:id/guess": "Employee guesses which past shop was a Hunt",
+  // training
+  "GET /api/v1/training/assignments": "List training assignments",
+  "POST /api/v1/training/assignments/:id/complete": "Employee marks training complete",
+  "POST /api/v1/training/assignments/:id/verify": "Manager verifies",
+  "POST /api/v1/training/assignments/:id/retest": "Link a retest shop and auto-evaluate trigger section",
+  // imports
+  "POST /api/v1/imports/preview": "CSV preview (admin)",
+  "POST /api/v1/imports/commit": "CSV commit with rubric mapping",
+  "POST /api/v1/imports/users": "Bulk user creation from CSV",
+  "POST /api/v1/imports/pdf-preview": "Anthropic-powered single-shop PDF extract",
+  // calibration
+  "GET /api/v1/calibration": "List calibration sessions",
+  "POST /api/v1/calibration/:id/entries": "Submit an independent score (idempotent upsert)",
+  // ops
+  "GET /api/v1/health": "DB + AI + scheduler status",
+  "GET /api/v1/version": "Build version + Node version",
+  "GET /api/v1/_routes": "This endpoint — auto-collected route listing",
+  // admin
+  "GET /api/v1/admin/overview": "Operational counts for the admin dashboard",
+  "POST /api/v1/admin/jobs/run": "Manually run the scheduler",
+  "GET /api/v1/admin/audit-log": "Audit log with friendly actor + entity labels",
+  "GET /api/v1/admin/config": "SystemConfig key/value list",
+  "PATCH /api/v1/admin/config/:key": "Set a SystemConfig value (cached 60s in-process)",
+  "GET /api/v1/admin/outbox": "Deferred-email outbox (?status=pending|sent|failed)",
+};
+
 const startedAt = Date.now();
 
 export function buildApp(): express.Express {
@@ -155,7 +234,11 @@ export function buildApp(): express.Express {
   app.use("/api/v1/admin", adminRoutes);
 
   app.get("/api/v1/_routes", (_req, res) => {
-    res.json({ routes: collectRoutes(app) });
+    const routes = collectRoutes(app).map((r) => ({
+      ...r,
+      description: ROUTE_DESCRIPTIONS[`${r.method} ${r.path}`] ?? null,
+    }));
+    res.json({ routes });
   });
 
   app.get("/api/v1/version", (_req, res) => {
