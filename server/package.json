@@ -10,6 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:reset": "prisma migrate reset --force",
+    "prisma:check": "DATABASE_URL=postgresql://x:x@x:5432/x prisma validate",
     "seed": "tsx prisma/seed.ts",
     "seed:demo": "tsx prisma/seed-demo.ts",
     "typecheck": "tsc --noEmit",

@@ -21,6 +21,7 @@ jobs:
           cache-dependency-path: server/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npx prisma generate
+      - run: npm run prisma:check
       - run: npm run typecheck
       - run: npm test
 
