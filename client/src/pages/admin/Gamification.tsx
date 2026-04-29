@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../api";
 
 interface Location { id: string; name: string; code: string }
@@ -125,15 +126,20 @@ function Leagues() {
         <h3 className="font-medium mb-2">Leagues ({leagues.length})</h3>
         <ul className="text-sm space-y-1">
           {[...leagues].sort((a, b) => a.tier - b.tier).map((l) => (
-            <li key={l.id} className="border-b last:border-0 py-1">
-              <span className="font-medium">{l.name}</span>
-              <span className="badge ml-2 bg-stine-50 text-stine-700">tier {l.tier}</span>
-              <span className="text-slate-400 ml-2">
-                {l.periodStart.slice(0, 10)} → {l.periodEnd.slice(0, 10)} · {l.storeIds.length} stores
-              </span>
-              {l.rolledOverAt && (
-                <span className="badge ml-2 bg-emerald-50 text-emerald-700">rolled over</span>
-              )}
+            <li key={l.id} className="border-b last:border-0 py-1 flex items-center justify-between">
+              <div>
+                <span className="font-medium">{l.name}</span>
+                <span className="badge ml-2 bg-stine-50 text-stine-700">tier {l.tier}</span>
+                <span className="text-slate-400 ml-2">
+                  {l.periodStart.slice(0, 10)} → {l.periodEnd.slice(0, 10)} · {l.storeIds.length} stores
+                </span>
+                {l.rolledOverAt && (
+                  <span className="badge ml-2 bg-emerald-50 text-emerald-700">rolled over</span>
+                )}
+              </div>
+              <Link to={`/admin/leagues/${l.id}`} className="text-xs text-stine-600 hover:underline">
+                Standings →
+              </Link>
             </li>
           ))}
         </ul>

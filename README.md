@@ -94,6 +94,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **League standings UI** — `/admin/leagues/:id` surfaces top 3 by default with the §10 rationale rendered inline. "Reveal full standings" button is admin-only and labeled as "internal calibration only — never share outside leadership," so the punitive-display anti-pattern is hard to fall into accidentally.
+- **Action-plan verification with notes** — when a manager clicks Verify, an inline form appears for optional `verificationNotes` before the confirmation. Backend already accepted them; UI now wires them through.
+- **General comment thread on shops** — shop detail gained a Discussion panel listing non-time-anchored comments and a textarea to add new ones. Audio-anchored comments still render in the AudioReview player as before; the new section lists everything else (managers + employees can both contribute).
+
+## Earlier additions
+
 - **Schema indexes on hot paths** — composite indexes on `Shop(locationId, status)`, `Shop(evaluatedEmployeeId, shopDate)`, `Shop(shopDate)`, `ActionPlan(assignedToId, status)`, and `ActionPlan(status, dueDate)`. The action-plan ones in particular speed up the hourly overdue scan.
 - **Bulk AI summary for managers** — `POST /shops/bulk-summary` (manager+ only) takes up to 10 shop IDs, runs `summarizeShop` in parallel, returns per-shop summary or error. Manager dashboard exposes a "Summarize first N" button on the review queue; results render inline with sentiment badges.
 - **Manager review queue priority** — queue now sorts oldest-pending-first (`submittedAt asc`) and the dashboard surfaces an aging badge: 0–1 day = grey, 2–4 = amber, 5+ = rose. Makes a 6-day-old shop visible without scrolling past last night's submissions.

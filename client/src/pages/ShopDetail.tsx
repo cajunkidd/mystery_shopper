@@ -248,6 +248,11 @@ export default function ShopDetail() {
         </div>
       )}
 
+      <ShopCommentThread shop={shop} onChange={async () => {
+        const r = await api<{ shop: Shop }>(`/shops/${shop.id}`);
+        setShop(r.shop);
+      }} />
+
       {canReview && shop.review?.status !== "completed" && (
         <ManagerReviewPanel shop={shop} onChange={(s) => setShop(s)} />
       )}
@@ -278,6 +283,61 @@ export default function ShopDetail() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ShopCommentThread({ shop, onChange }: { shop: Shop; onChange: () => void }) {
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  // Audio-anchored comments are rendered by AudioReview; the general thread
+  // shows everything that isn't time-anchored on caller audio.
+  const general = shop.comments.filter((c) => c.audioTimestampSeconds == null);
+
+  async function post() {
+    if (!draft.trim()) return;
+    setBusy(true);
+    try {
+      await api(`/shops/${shop.id}/comments`, {
+        method: "POST",
+        body: JSON.stringify({ body: draft }),
+      });
+      setDraft("");
+      onChange();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3 className="font-medium mb-2">Discussion</h3>
+      {general.length === 0 && (
+        <p className="text-sm text-slate-400 mb-3">No comments yet — start a thread to flag context the shopper missed or ask a clarifying question.</p>
+      )}
+      <ul className="space-y-2 mb-3">
+        {general.map((c) => (
+          <li key={c.id} className="text-sm border-l-2 border-slate-200 pl-3">
+            <div className="text-xs text-slate-500">
+              <span className="font-medium text-slate-700">{c.author.fullName}</span>
+              <span className="ml-2">{new Date(c.createdAt).toLocaleString()}</span>
+            </div>
+            <p className="whitespace-pre-wrap">{c.body}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2 items-end">
+        <textarea
+          className="input flex-1"
+          rows={2}
+          placeholder="Add a comment…"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <button className="btn-primary text-sm" disabled={busy || !draft.trim()} onClick={post}>
+          Post
+        </button>
+      </div>
     </div>
   );
 }

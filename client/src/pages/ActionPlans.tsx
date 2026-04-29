@@ -40,10 +40,19 @@ export default function ActionPlans() {
 
   const filtered = plans?.filter((p) => !statusFilter || p.status === statusFilter) ?? null;
 
+  const [verifyId, setVerifyId] = useState<string | null>(null);
+  const [verifyNotes, setVerifyNotes] = useState("");
+
   async function act(id: string, action: "acknowledge" | "complete" | "verify") {
     setBusy(id);
     try {
-      await api(`/action-plans/${id}/${action}`, { method: "POST", body: JSON.stringify({}) });
+      const body =
+        action === "verify"
+          ? JSON.stringify({ verificationNotes: verifyNotes || undefined })
+          : JSON.stringify({});
+      await api(`/action-plans/${id}/${action}`, { method: "POST", body });
+      setVerifyId(null);
+      setVerifyNotes("");
       load();
     } finally {
       setBusy(null);
@@ -151,10 +160,28 @@ export default function ActionPlans() {
                         Mark complete
                       </button>
                     )}
-                    {canVerify && p.status === "completed" && (
-                      <button className="btn-primary text-xs" disabled={busy === p.id} onClick={() => act(p.id, "verify")}>
+                    {canVerify && p.status === "completed" && verifyId !== p.id && (
+                      <button className="btn-primary text-xs" disabled={busy === p.id} onClick={() => setVerifyId(p.id)}>
                         Verify
                       </button>
+                    )}
+                    {canVerify && p.status === "completed" && verifyId === p.id && (
+                      <div className="flex flex-col gap-1 mt-1">
+                        <input
+                          className="input text-xs py-1"
+                          placeholder="Verification notes (optional)"
+                          value={verifyNotes}
+                          onChange={(e) => setVerifyNotes(e.target.value)}
+                        />
+                        <div className="flex gap-1">
+                          <button className="btn-primary text-xs" disabled={busy === p.id} onClick={() => act(p.id, "verify")}>
+                            Confirm
+                          </button>
+                          <button className="text-xs text-slate-500" onClick={() => { setVerifyId(null); setVerifyNotes(""); }}>
+                            cancel
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -19,6 +19,7 @@ import Users from "./pages/admin/Users";
 import AuditLog from "./pages/admin/AuditLog";
 import CsvImport from "./pages/admin/CsvImport";
 import GamificationAdmin from "./pages/admin/Gamification";
+import LeagueStandings from "./pages/admin/LeagueStandings";
 import { CalibrationList, CalibrationDetail } from "./pages/admin/Calibration";
 import TrainingModules from "./pages/admin/TrainingModules";
 import Config from "./pages/admin/Config";
@@ -111,6 +112,14 @@ export default function App() {
           element={
             <Require roles={["admin"]}>
               <GamificationAdmin />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/leagues/:id"
+          element={
+            <Require roles={["admin", "district_manager"]}>
+              <LeagueStandings />
             </Require>
           }
         />
