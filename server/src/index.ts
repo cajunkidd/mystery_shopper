@@ -13,6 +13,10 @@ import dashboardRoutes from "./routes/dashboards.js";
 import attachmentRoutes from "./routes/attachments.js";
 import gamificationRoutes from "./routes/gamification.js";
 import notificationRoutes from "./routes/notifications.js";
+import aiRoutes from "./routes/ai.js";
+import importRoutes from "./routes/imports.js";
+import leagueRoutes from "./routes/leagues.js";
+import adminRoutes from "./routes/admin.js";
 
 const app = express();
 
@@ -34,6 +38,10 @@ app.use("/api/v1", attachmentRoutes);
 app.use("/api/v1/dashboards", dashboardRoutes);
 app.use("/api/v1/gamification", gamificationRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1", aiRoutes);
+app.use("/api/v1", importRoutes);
+app.use("/api/v1", leagueRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

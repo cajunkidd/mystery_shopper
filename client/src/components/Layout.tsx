@@ -18,6 +18,8 @@ const NAV: NavItem[] = [
   { to: "/heatmap", label: "Heatmap", roles: ["store_manager", "district_manager", "admin"] },
   { to: "/admin/rubrics", label: "Rubrics", roles: ["admin"] },
   { to: "/admin/users", label: "Users", roles: ["admin"] },
+  { to: "/admin/import", label: "Import", roles: ["admin"] },
+  { to: "/admin/audit-log", label: "Audit", roles: ["admin"] },
 ];
 
 export default function Layout() {

@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../auth.js";
 import { awardForCompletedShop } from "../points.js";
 import { evaluateBadgesForUser } from "../badges.js";
 import { notify } from "../notifications.js";
+import { audit } from "../audit.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -39,10 +40,17 @@ router.patch("/reviews/:id", requireRole("store_manager", "district_manager", "a
   if (data.bonusPointsAwarded != null && data.bonusPointsAwarded > 0 && !data.bonusJustification) {
     return res.status(400).json({ error: "bonus_justification_required" });
   }
+  const before = await prisma.review.findUnique({ where: { id: req.params.id } });
   const review = await prisma.review.update({
     where: { id: req.params.id },
     data: { ...data, status: "in_progress" },
   });
+  // §11: every score adjustment is logged.
+  if (data.managerScoreAdjustment != null && before?.managerScoreAdjustment !== data.managerScoreAdjustment) {
+    await audit(prisma, req, "review", review.id, "score_change",
+      { adjustment: before?.managerScoreAdjustment ?? null },
+      { adjustment: data.managerScoreAdjustment, justification: data.managerScoreJustification });
+  }
   res.json({ review });
 });
 

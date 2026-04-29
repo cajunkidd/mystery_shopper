@@ -345,6 +345,64 @@ model UserBadge {
   @@unique([userId, badgeId])
 }
 
+model League {
+  id          String   @id @default(uuid())
+  name        String
+  periodStart DateTime
+  periodEnd   DateTime
+  storeIds    String[]
+  createdAt   DateTime @default(now())
+}
+
+model Challenge {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  metric      String
+  category    String?
+  threshold   Float?
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  participations ChallengeParticipation[]
+}
+
+model ChallengeParticipation {
+  id           String   @id @default(uuid())
+  challengeId  String
+  challenge    Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  locationId   String
+  currentValue Float    @default(0)
+  targetValue  Float    @default(0)
+  completed    Boolean  @default(false)
+
+  @@unique([challengeId, locationId])
+}
+
+model HuntCampaign {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime
+  scenarios   Json?
+  active      Boolean  @default(true)
+
+  reveals     HuntReveal[]
+}
+
+model HuntReveal {
+  id                       String   @id @default(uuid())
+  huntCampaignId           String
+  huntCampaign             HuntCampaign @relation(fields: [huntCampaignId], references: [id], onDelete: Cascade)
+  shopId                   String
+  recognizedEmployeeId     String
+  identifiedByEmployees    String[]
+  revealedAt               DateTime @default(now())
+}
+
 model AuditLog {
   id         String   @id @default(uuid())
   actorId    String?

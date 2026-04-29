@@ -148,6 +148,10 @@ export default function ShopDetail() {
         </div>
       )}
 
+      {(user.role === "store_manager" || user.role === "district_manager" || user.role === "admin") && (
+        <AISummaryPanel shopId={shop.id} />
+      )}
+
       {shop.review && (
         <div className="card">
           <h3 className="font-medium mb-2">Manager review</h3>
@@ -259,6 +263,66 @@ export default function ShopDetail() {
                   Submit appeal
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AISummaryPanel({ shopId }: { shopId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [summary, setSummary] = useState<{ summary: string; strengths: string[]; improvements: string[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await api<{ summary: { summary: string; strengths: string[]; improvements: string[] } }>(
+        `/shops/${shopId}/summary`,
+        { method: "POST", body: JSON.stringify({}) },
+      );
+      setSummary(r.summary);
+    } catch (e) {
+      const apiErr = e as { status?: number; body?: { error?: string } };
+      if (apiErr.status === 503 || apiErr.body?.error === "ai_not_configured") {
+        setError("AI summarization is not configured (ANTHROPIC_API_KEY missing).");
+      } else {
+        setError("AI summary failed. Try again later.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">AI summary</h3>
+        <button className="btn-secondary text-xs" disabled={busy} onClick={generate}>
+          {busy ? "Generating…" : summary ? "Regenerate" : "Generate"}
+        </button>
+      </div>
+      {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}
+      {summary && (
+        <div className="mt-3 space-y-3 text-sm">
+          <p className="whitespace-pre-wrap">{summary.summary}</p>
+          {summary.strengths.length > 0 && (
+            <div>
+              <div className="font-medium text-emerald-700 text-xs uppercase">Strengths</div>
+              <ul className="list-disc list-inside text-slate-700">
+                {summary.strengths.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
+          {summary.improvements.length > 0 && (
+            <div>
+              <div className="font-medium text-amber-700 text-xs uppercase">Improvement areas</div>
+              <ul className="list-disc list-inside text-slate-700">
+                {summary.improvements.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
             </div>
           )}
         </div>

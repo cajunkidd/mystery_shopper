@@ -2,7 +2,7 @@
 
 Internal app for managing mystery shop and mystery caller evaluations across Stine LLC's 14 locations. See `STINE_MYSTERY_SHOP_APP_SPEC.md` for the authoritative build spec.
 
-**Status:** Phase 1 MVP plus Phase 2 audio review and the Phase 3 gamification core (points engine, badges, leaderboard, notifications, heatmap).
+**Status:** Phases 1–3 + parts of Phase 4. Includes Phase 4 Anthropic-powered comment summarization, agency CSV import, audit log + admin viewer, leagues, challenges, and the district dashboard.
 
 ## Stack
 
@@ -76,6 +76,10 @@ The Vite dev server proxies `/api` to `http://localhost:4000`.
 5. Manager resolves the appeal under **Appeals**.
 6. **Export PDF** from any shop detail page.
 
+## Environment
+
+Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI summary + theme features (otherwise those endpoints return 503). Defaults to `claude-sonnet-4-6` per spec §6.9; override via `ANTHROPIC_MODEL`.
+
 ## What's now implemented (beyond Phase 1)
 
 - **Attachments** — multer-backed file upload + retrieval, with role gating (employees can only access caller audio after manager release, per §6.7).
@@ -88,14 +92,22 @@ The Vite dev server proxies `/api` to `http://localhost:4000`.
 - **District dashboard endpoint** — roll-up across stores in a district with open-appeal counter.
 - **Unit tests** — `npm run test` exercises the scoring engine and points engine (17 tests covering yes/no, scale, multi-choice, streak bonus capping, improvement threshold, manager bonus).
 
+## What's now implemented (Phase 4 partial)
+
+- **AI comment summarization** — per-shop developmental summary (`summary` + `strengths` + `improvements`) and per-location theme clustering. Uses Anthropic SDK, `claude-sonnet-4-6`, adaptive thinking, structured outputs (json_schema), and a `cache_control` breakpoint on the stable system prompt for prompt caching. Vitest verifies the cache breakpoint is on the system block, not on the volatile per-shop content.
+- **Agency CSV import** — admin upload → header preview → column mapping (location code, date, narrative, employee email, rubric questions) → bulk shop creation, with per-row error reporting.
+- **Audit log** — admin viewer at `/admin/audit-log`. Score adjustments on reviews are written via the audit helper.
+- **District dashboard** — `/districts/:name` rolls up shop count, open appeals, and per-store averages.
+- **Leagues + challenges** — schema + CRUD endpoints. Standings respect §10 (top 3 + most-improved only).
+
 ## What's still intentionally not here
 
 - **Phase 3b** — "The Hunt" mechanic (schema is in place, no UI/routes yet).
-- **Phase 3** — leagues + challenges (schema is in place; promotions/demotions logic deferred until baseline data exists).
-- **Phase 4** — agency CSV import, BisTrack integration, Anthropic-powered comment summarization.
+- **League auto-promotion/demotion** — the cron job to apply standings at quarter-end is not implemented.
+- **Phase 4** — BisTrack integration, microlearning training modules, scheduled email digests.
 - **Email / SMS** — spec calls for them; this slice is in-app only.
 - **Rubric drag-and-drop** — basic add/remove only.
-- **Photo/video evidence on shop answers** — attachments support exists but the wizard UI doesn't surface per-question uploads yet.
+- **Per-question photo/audio attachments in the wizard** — attachments work for shop-level audio (Phase 2) but the wizard doesn't surface per-question uploads.
 
 ## Open spec questions (from §15) deferred
 

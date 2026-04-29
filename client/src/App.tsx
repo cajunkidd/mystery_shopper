@@ -10,9 +10,12 @@ import ActionPlans from "./pages/ActionPlans";
 import Appeals from "./pages/Appeals";
 import Gamification from "./pages/Gamification";
 import HeatmapPage from "./pages/Heatmap";
+import District from "./pages/District";
 import Rubrics from "./pages/admin/Rubrics";
 import RubricEditor from "./pages/admin/RubricEditor";
 import Users from "./pages/admin/Users";
+import AuditLog from "./pages/admin/AuditLog";
+import CsvImport from "./pages/admin/CsvImport";
 
 function Require({ roles, children }: { roles?: Role[]; children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -76,6 +79,30 @@ export default function App() {
           element={
             <Require roles={["admin"]}>
               <Users />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/audit-log"
+          element={
+            <Require roles={["admin"]}>
+              <AuditLog />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/import"
+          element={
+            <Require roles={["admin"]}>
+              <CsvImport />
+            </Require>
+          }
+        />
+        <Route
+          path="districts/:name"
+          element={
+            <Require roles={["district_manager", "admin"]}>
+              <District />
             </Require>
           }
         />
