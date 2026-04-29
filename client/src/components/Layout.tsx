@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth, type Role } from "../auth";
 import { NotificationBell } from "./NotificationBell";
+import { api } from "../api";
 
 interface NavItem {
   to: string;
@@ -38,6 +40,27 @@ const MOBILE_NAV_FOR_EMPLOYEE = ["/", "/shops", "/recognition", "/training"];
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  // Lightweight unread poll, only for the mobile bottom nav. The header
+  // bell already maintains its own state — this just feeds the dashboard
+  // tab indicator for employees on small viewports.
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    if (!user || user.role !== "employee") return;
+    let cancelled = false;
+    function fetchUnread(): void {
+      api<{ unread: number }>("/notifications")
+        .then((r) => {
+          if (!cancelled) setUnread(r.unread);
+        })
+        .catch(() => undefined);
+    }
+    fetchUnread();
+    const id = setInterval(fetchUnread, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [user]);
   if (!user) return null;
   const items = NAV.filter((n) => n.roles.includes(user.role));
   return (
@@ -99,7 +122,12 @@ export default function Layout() {
                     }`
                   }
                 >
-                  <span className="text-xl leading-none" aria-hidden>{n.glyph}</span>
+                  <span className="text-xl leading-none relative" aria-hidden>
+                    {n.glyph}
+                    {n.to === "/" && unread > 0 && (
+                      <span className="absolute -top-1 -right-2 w-2 h-2 bg-rose-500 rounded-full" />
+                    )}
+                  </span>
                   <span className="mt-0.5">{n.label}</span>
                 </NavLink>
               </li>

@@ -3,9 +3,14 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { audit } from "../audit.js";
+import { capabilitiesFor } from "../permissions.js";
 
 const router = Router();
 router.use(requireAuth);
+
+router.get("/me/permissions", (req, res) => {
+  res.json({ role: req.user!.role, capabilities: capabilitiesFor(req.user!.role) });
+});
 
 router.get("/me/preferences", async (req, res) => {
   const user = await prisma.user.findUnique({

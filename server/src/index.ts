@@ -1,5 +1,8 @@
 import { buildApp } from "./app.js";
 import { startScheduler } from "./jobs.js";
+import { enforceEnv } from "./env.js";
+
+enforceEnv();
 
 const app = buildApp();
 
