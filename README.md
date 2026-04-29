@@ -94,6 +94,15 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Test coverage for new logic** — 10 new tests:
+  * `extractShopFromPdf` posts the PDF as a base64 document block (not in the cached system prompt) and the schema requires every field; throws when `ANTHROPIC_API_KEY` is missing.
+  * Audit fan-out: rubric activate/retire, appeal resolve, user role-change, deactivate, and the negative case (no audit entry when only `fullName` changes).
+- **Notification preferences (§8)** — `User` gained `notifyByEmail` (default true) and `notifyBySms` (default false). New `/me/preferences` GET/PATCH endpoints. Settings page at `/settings` reachable from the user-name area in the header. In-app channel is always on per §8; toggles take effect when email / SMS infrastructure is wired up.
+
+**71 vitest tests pass** (up from 61).
+
+## Earlier additions
+
 - **Security middleware** — `helmet()` is on by default; `/auth/login` has a per-IP rate limit of 20 requests / 5 minutes (skipped in tests). Set `TRUST_PROXY=1` behind a load balancer.
 - **Phase 4 PDF agency import** — `POST /imports/pdf-preview` sends the uploaded PDF to Anthropic (vision-capable Sonnet) with a structured-outputs schema and returns the extracted location code/name, date, shopper, narrative, and type. Surfaced as a "Phase 4: agency PDF preview" card on `/admin/import`.
 - **Configurable retention via SystemConfig** — new `config.ts` reads `audio.retention_days`, `appeal.escalation_days`, `gamification.enabled` from the SystemConfig table (60s in-process cache; sane defaults). New `/admin/config` UI exposes them with help text per setting.

@@ -55,9 +55,9 @@ export default function Layout() {
           </nav>
           <div className="text-sm flex items-center gap-3">
             <NotificationBell />
-            <span className="hidden sm:inline opacity-90">
+            <Link to="/settings" className="hidden sm:inline opacity-90 hover:underline">
               {user.fullName} <span className="opacity-70">({user.role})</span>
-            </span>
+            </Link>
             <button
               onClick={() => {
                 logout();

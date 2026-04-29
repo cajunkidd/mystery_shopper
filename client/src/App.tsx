@@ -11,6 +11,7 @@ import Appeals from "./pages/Appeals";
 import Gamification from "./pages/Gamification";
 import Training from "./pages/Training";
 import HeatmapPage from "./pages/Heatmap";
+import Settings from "./pages/Settings";
 import District from "./pages/District";
 import Rubrics from "./pages/admin/Rubrics";
 import RubricEditor from "./pages/admin/RubricEditor";
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="appeals" element={<Appeals />} />
         <Route path="recognition" element={<Gamification />} />
         <Route path="training" element={<Training />} />
+        <Route path="settings" element={<Settings />} />
         <Route
           path="heatmap"
           element={
