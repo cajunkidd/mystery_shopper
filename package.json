@@ -1,0 +1,18 @@
+{
+  "name": "stine-mystery-shopper",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Stine Mystery Shop & Caller Performance Platform — Phase 1 scaffold",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
