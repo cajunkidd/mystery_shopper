@@ -32,6 +32,48 @@ The app has four roles. What you see on every screen is filtered by your role.
 
 ---
 
+## Quick-start cheat sheets
+
+One-page summary per role. Read your row first, then dive into the phase sections for detail.
+
+### Employee — in 60 seconds
+
+- **Open the app → your dashboard.** Latest shop, trend, open action plans, and (Phase 3) badges and personal best are all on the home screen.
+- **Click any shop** to see every question, the score, manager comments, and the narrative. For caller shops, play the audio and read time-anchored comments inline.
+- **Got an action plan?** Click **Acknowledge**, work it, then **Mark Complete**. Your manager will Verify.
+- **Disagree with a score?** Open the shop → **File Appeal** → enter reason and requested change. It stays private until your manager resolves it.
+- **Want your data?** Settings → **Export my data** for a full self-serve export.
+- **Phase 3 only:** check **Personal Best** to see your own trend vs. yourself — never vs. peers.
+
+### Store Manager — in 60 seconds
+
+- **Top of dashboard: "Needs your attention" queue.** Open the highest-priority item.
+- **In review:** add per-question comments, adjust scores (justification required), write a manager summary, create one or more action plans.
+- *(Phase 3)* Award **0–25 manager bonus points** with required justification when an algorithm wouldn't catch what made the shop exceptional.
+- **Click Mark Review Complete.** Employee gets notified; status moves forward.
+- **Caller shop?** Play the audio, click the timeline at the moment that matters, **Add Comment at HH:MM**. Comments are hidden from the employee until you complete the review.
+- **Appeal in your queue?** Approve / partially approve / deny with notes — or **Escalate** to district.
+
+### District / Regional Manager — in 60 seconds
+
+- **Heat-map first.** Stores × rubric sections, color-coded. Click any red cell → drill into the underlying shops.
+- **Top issues + appeal volume** are tiles at the top of your dashboard.
+- **Escalated appeals** show up in a dedicated queue. Resolve with notes; resolution is logged in `AuditLog`.
+- *(Phase 4)* Click **Identify themes** on any store / category to get the top 3 recurring themes in plain language.
+- *(Phase 4)* **Cross-System Intelligence** dashboard joins shop scores to BisTrack sales / AOV / conversion.
+- **Subscribe to the weekly digest** in Settings → Notifications.
+
+### Admin (IT / HR) — in 60 seconds
+
+- **First-time setup?** Jump to §7 (Admin runbook) — locations, users, first rubric, gamification config in order.
+- **Author rubrics:** Admin → Rubrics → New. Build sections + questions (with conditional logic and required attachments), Save Draft, Activate. Activating retires the previous version automatically.
+- **Manage users & locations:** Admin → Users / Locations. Assign roles and `primary_location_id` (employees, store managers) or `district_ids` (district managers).
+- **Toggle gamification per location:** `SystemConfig.gamification.enabled`. Off = Phase 1+2 only, no badges/leagues/points.
+- **Audio retention:** `SystemConfig.audio.retention_days` (default 365). Apply legal hold per `Attachment` when needed.
+- **Audit log:** Admin → Audit Log. Every score view, score adjustment, export, and login is here.
+
+---
+
 ## 2. Phase 1 — Core scorecard & coaching loop
 
 This is the MVP and the foundation everything else builds on. End-to-end, it lets a mystery shop be entered, routed to a manager, reviewed, turned into an action plan, acknowledged by the employee, optionally appealed, and resolved.
@@ -485,4 +527,145 @@ A few features common in competitor platforms were intentionally left out — se
 - **E-commerce mystery shopping** (no meaningful e-commerce traffic at the store level)
 - **Replacement of HR performance review systems** (this app *informs* performance reviews, doesn't *become* them)
 - **Mystery shopper recruiting / scheduling** (the agency handles this)
+
+---
+
+## 7. Admin runbook — first-time setup
+
+This is the order an admin should configure the platform on day one. Each step has a clear "done" condition. Don't skip ahead — later steps assume earlier ones are complete.
+
+### Step 1 — Confirm Contract Manager pattern reuse
+
+Before any data goes in, confirm the platform is using the same auth, layout shell, deploy pipeline, and Anthropic API wrapper as Stine Contract Manager (per §3 of the spec). If SSO is in use there, log in with SSO here.
+
+**Done when:** you can sign in as an admin and see the empty Admin nav.
+
+### Step 2 — Create the 14 locations
+
+Admin → Locations → New. For each store enter:
+
+- `code` (e.g. `STN-SUL` for Sulphur)
+- `name`, `address`, `city`, `state`, `zip`
+- `district` (e.g. "Southwest LA")
+
+13 Louisiana stores plus 1 Mississippi (Natchez). Mark each `active`.
+
+**Done when:** all 14 locations are listed, each with a district set.
+
+### Step 3 — Create the user roster
+
+Admin → Users → New (or bulk-import if Contract Manager's user pipeline supports it). Per user:
+
+- `email`, `full_name`, `hire_date`
+- `role` — `employee`, `store_manager`, `district_manager`, or `admin`
+- `primary_location_id` for employees and store managers
+- `district_ids` for district managers (one or more districts they cover)
+
+> **HR sign-off gate:** Before any employee record goes in, confirm HR has the written mystery-shopping notice on file and acknowledgment forms signed (per §11 of the spec). Don't skip this.
+
+**Done when:** every active employee has a record, every location has a `store_manager`, and every district has a `district_manager`.
+
+### Step 4 — Build the first rubrics
+
+You need at least two rubrics live before you can enter shops:
+
+1. **In-Store Visit v1** (`type = visit`)
+2. **Mystery Caller v1** (`type = call`)
+
+Build each per §2.1 (sections → questions → conditional logic → attachments → weights). Save as draft. Walk through it as a non-admin role using the preview to make sure it makes sense. Then **Activate**.
+
+> Web-inquiry and social-inquiry rubrics can be added later — they're not required for launch.
+
+**Done when:** at least one `visit` and one `call` rubric have status `active`.
+
+### Step 5 — Configure system settings
+
+Admin → Config. Set the keys you care about up front:
+
+| Key | Recommended value | Why |
+|---|---|---|
+| `audio.retention_days` | `365` | 12-month default per §11 |
+| `appeal.escalation_days` | `7` | After this many days at the store level, an unresolved appeal can be escalated |
+| `gamification.enabled` | `false` (per location) | Don't turn on until Step 8 |
+
+**Done when:** the config table has explicit values for the keys above.
+
+### Step 6 — Run a smoke test of the Phase 1 loop
+
+Pick one store and one employee. Walk a shop end-to-end yourself, ideally with the store manager watching:
+
+1. Admin enters a shop via the wizard.
+2. Store manager reviews it, writes a summary, creates an action plan.
+3. Employee acknowledges the action plan, files an appeal.
+4. Store manager resolves the appeal.
+5. Admin exports the PDF and inspects it.
+6. Confirm `AuditLog` recorded each step.
+
+**Done when:** the full lifecycle works without manual intervention.
+
+### Step 7 — Soft launch Phase 1
+
+Turn on Phase 1 for all 14 locations. Run for **at least two weeks** of real shops (per §2 of the spec — phases require real production use before advancing). Monitor:
+
+- Appeal volume — unusually high suggests rubric or training issue
+- Action plan completion rate — low suggests workflow friction
+- Audit log for unexpected score adjustments
+
+**Done when:** two clean weeks of production data with no unresolved structural issues.
+
+### Step 8 — Add Phase 2 (audio + caller workflow)
+
+Once Phase 1 is steady:
+
+1. Verify Stine infrastructure has audio storage configured with encryption-at-rest.
+2. Confirm Mississippi (Natchez) call-recording rules separately — Mississippi is one-party consent at time of spec, but verify before launch.
+3. Activate Phase 2 features in the app (audio upload step in the wizard, waveform player in review).
+4. Run another smoke test using a real caller recording.
+
+**Done when:** a caller recording can be uploaded, time-anchored comments saved, the manager can release the review, and the employee can play it back.
+
+### Step 9 — Wait for 30–60 days of clean baseline data
+
+Per §2 of the spec, do not enable gamification until you have 30–60 days of clean baseline scores. Without it, employees compete against noise.
+
+While you wait:
+- Identify reviewer calibration owner (HR or operations — see §11 of the spec).
+- Run the **calibration check** (§4.8): two reviewers, 10 shops, average delta ≤ 8 points. Re-train if it fails.
+- Confirm with HR that gamification will not replace any existing recognition or compensation program (per §10 anti-pattern #2 and #6).
+
+**Done when:** baseline data exists, calibration passed, HR has signed off.
+
+### Step 10 — Configure and enable Phase 3 (gamification)
+
+Per location, in `SystemConfig`:
+
+1. Set `gamification.enabled = true` for the locations you're launching.
+2. Admin → Gamification → Leagues → New. Group stores into leagues of 3–5 (start by district).
+3. Admin → Gamification → Badges → review the seeded badges, edit `earn_criteria` if needed, mark `active`.
+4. Optional: define a launch challenge (e.g. "30 days without a sub-70 shop").
+5. Optional: define a Hunt campaign (Phase 3b) — date window, scenarios, codewords — and coordinate physical rewards outside the app.
+
+**Done when:** at least one league has standings showing top 3 + most-improved, and badges fire automatically when their criteria are met.
+
+### Step 11 — Add Phase 4 (advanced analytics)
+
+Once Phase 3 is steady:
+
+1. Connect the BisTrack data pipeline (use the existing one — don't build a new one).
+2. Configure the agency import pipeline (CSV mapping per agency, optional email-PDF parsing endpoint).
+3. Subscribe managers and district managers to the weekly digest.
+4. Test theme clustering and comment summarization on at least one quarter of real shops before relying on them.
+
+**Done when:** a manager can see "stores with product-knowledge < 70% have 12% lower AOV" type insights without manual analysis (the Phase 4 acceptance criterion in §2 of the spec).
+
+### Day-to-day admin tasks (after launch)
+
+- **Monthly:** review audit log for unusual score adjustments or bonus awards.
+- **Monthly:** review league standings and confirm promotion/demotion at quarter end.
+- **Quarterly:** rotate active challenges (per §10 anti-pattern #3 — don't let one metric become game-able).
+- **Quarterly:** re-run calibration on at least one store.
+- **Annually:** review and refresh rubrics. Activate new versions; old shops keep rendering against the version they were scored on.
+- **As needed:** apply legal hold on `Attachment` records that need to skip auto-delete.
+- **As needed:** respond to employee right-to-know data export requests (most should be self-serve via Settings).
+
 
