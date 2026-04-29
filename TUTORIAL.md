@@ -210,3 +210,133 @@ The platform enforces audio retention rules automatically:
 Employees retain their **right-to-know** export: a self-serve button in employee settings produces a full export of their own data, including any audio they were evaluated on (subject to retention).
 
 ---
+
+## 4. Phase 3 — Gamification
+
+Phase 3 is built only after 30–60 days of clean baseline data exists in production. The whole layer is toggleable per location via `SystemConfig.gamification.enabled` — turning it off does not break the core app.
+
+The design philosophy: gamification is **additive recognition**, not compensation, and never punitive. Public displays only ever show top 3 + most-improved, never bottom-of-pack. Personal-best is the primary individual metric.
+
+### 4.1 How points are earned
+
+Every point ever awarded is appended to a `PointsLedger` row. Nothing is ever mutated — adjustments are new entries with a negative value and a justification.
+
+The points engine has five sources:
+
+| Source | Rule |
+|---|---|
+| **Base score** | `shop_score` (0–100) becomes the starting points value. |
+| **Type multiplier** | visit ×1.2, call ×1.0, special-scenario shop ×1.5 |
+| **Streak bonus** | +10% per consecutive shop ≥ 85, capped at +50%. Resets on a sub-85 shop. |
+| **Manager bonus** | 0–25 points awarded by a store manager during review, with required justification (audited). |
+| **Improvement bonus** | +20 if the shop score is ≥ 15 above the employee's trailing 3-shop average. |
+
+**Worked example.** An employee scores 92 on an in-store visit. They had a 91 and an 88 on the previous two shops, all ≥ 85, so they're on a 3-shop streak (+30%). The manager awards 10 bonus points for an exceptional close. Their trailing 3-shop average was 89.5, so the +20 improvement bonus does not trigger.
+
+```
+base       = 92
+× type     = 92 × 1.2  = 110.4   (visit)
+× streak   = 110.4 × 1.30 = 143.5
++ manager  = 143.5 + 10 = 153.5
++ improve  = 153.5 + 0  = 153.5
+```
+
+That's logged as a single `shop_score` ledger entry of 154 (rounded), plus a separate `manager_bonus` ledger entry of 10 with the justification text. Two entries, both append-only.
+
+### 4.2 Badges (permanent, three categories)
+
+Badges are earned, never expire, and never get taken away. Three categories:
+
+**Absolute performance:**
+- **Greeting Gold** — 5 perfect greetings in a quarter
+- **Product Sage** — perfect product-knowledge in a quarter
+- **Phone Pro** — 5 perfect mystery calls
+
+**Improvement:**
+- **Most Improved (Q1/Q2/Q3/Q4)** — best quarter-over-quarter delta
+- **Bounce Back** — recovered 20+ points after a sub-70 shop
+- **Comeback Kid** — 3 consecutive improving shops
+
+**Tenure / volume:**
+- **Veteran** — 50 shops graded
+- **Centurion** — 100 shops
+- **100 Club** — any single shop ≥ 100 (bonuses pushed it past 100)
+
+Each badge has a declarative `earn_criteria` rule the points engine evaluates after every shop. When the rule trips, a `UserBadge` row is created and the employee gets a notification.
+
+> **Why the Improvement category exists.** It creates a separate path to recognition for any skill level. A consistently-mid performer who's getting better should be just as celebrated as a top scorer.
+
+### 4.3 Leagues (peer groups, not company-wide ranking)
+
+Leagues are how the platform avoids "permanent losers." Instead of one company-wide leaderboard, the admin groups stores into **leagues of 3–5 stores each** (typically by district or region). Each league runs **monthly cycles**, and **promotion/demotion happens at quarter end** — top of the bottom league moves up, bottom of the top league moves down.
+
+The league standings page shows:
+
+- **Top 3 stores** for the current cycle
+- **Most-improved store** for the current cycle
+- Your own store's position **relative to the league**, not to the company
+
+Bottom-of-pack rankings are never displayed publicly. (See the attribution table — this is a deliberate countermeasure to the "electronic whip" failure mode.)
+
+### 4.4 Personal best (the most important screen)
+
+Every employee gets a **Personal Best** dashboard tile that shows:
+
+- **Highest single shop score** ever
+- **Latest shop score**
+- **Trailing 3-shop average**
+- **Trend chart** of their own scores over time, vs. their own history — never vs. peers
+
+This is the only place absolute position is shown to an individual, and it's only ever them vs. them. It protects employees who are consistently low on a global ranking from feeling singled out, while still giving them something concrete to beat.
+
+### 4.5 Manager bonus points (with justification)
+
+During review, the manager can award **0–25 bonus points** with a required justification. Use this when an algorithm wouldn't catch what made the shop exceptional — recovering a frustrated customer, a great cross-sell, an above-and-beyond moment.
+
+1. In the review screen, click **Award Bonus Points**.
+2. Enter a value 0–25.
+3. Type the justification (required — empty justifications are rejected).
+4. Submit. The award lands as a `manager_bonus` row in `PointsLedger` and is recorded in `AuditLog` with the manager's identity.
+
+This keeps human judgment in the loop so algorithmic-only scoring isn't the whole story.
+
+### 4.6 Challenges (store-level, time-bound)
+
+Challenges are short-term, store-level goals. Examples:
+
+- **"30 days without a sub-70 shop"** — a streak-style challenge.
+- **"Q2 closing-technique focus"** — a category-average challenge with a threshold (e.g. 85+ on the Close section).
+
+Each challenge has a `metric` (`avg_score`, `score_above_threshold_count`, or `category_avg`), an optional `category` and `threshold`, and a date window. Progress (`current_value` vs. `target_value`) is tracked per location in `ChallengeParticipation`.
+
+Stores opt in via the manager toggle. Admins can also mandate a challenge across all locations. Refresh challenges quarterly — the spec is explicit about not letting any single metric become game-able.
+
+### 4.7 The Hunt (Phase 3b, optional)
+
+The Hunt is an opt-in campaign mechanic that rewards exceptional service caught in the act.
+
+**How it works:**
+
+1. **Admin** defines a **Hunt campaign**: a date window plus a set of predefined service scenarios containing trigger phrases and codewords (e.g. a shopper says "I'm shopping for my dad's project" — codeword detection).
+2. **Mystery shoppers** run those scenarios during the campaign window.
+3. When an employee delivers the standard, the shopper records the interaction as a Hunt match against that employee.
+4. The employee gets a follow-up **"reveal" visit** from the same shopper — they come back, identify themselves, and recognize the employee in person. The app fires a **`hunt_reveal`** event:
+   - In-app public recognition (visible on the employee's profile, store dashboard)
+   - Notification to the employee and their store manager
+   - A small physical reward (gift card or similar) that's coordinated outside the app
+5. **Optional guess mechanic.** After the Hunt window closes, employees can submit guesses for which interaction was a Hunt shop. Correct guesses earn smaller bonus points (logged as `hunt_reveal` source in the ledger).
+
+The Hunt is admin-toggled per campaign and never automatic. It's the showpiece of the gamification layer — a deliberate, public, surprising moment of recognition.
+
+### 4.8 Calibration check before turning gamification on
+
+Before enabling gamification at any location, run a **calibration check**:
+
+1. Pick 10 recent shops at the location.
+2. Have **two reviewers** independently grade each one against the same rubric.
+3. Compare the deltas.
+4. **If the average delta exceeds 8 points**, do not turn on gamification yet. Retrain the rubric or the reviewers and re-test.
+
+This protects employees from competing against reviewer noise instead of their own actual performance.
+
+---
