@@ -154,3 +154,59 @@ Each role gets a different dashboard:
 The **heat-map** is reusable: rows are stores or employees, columns are rubric sections, cell color is average score. Click a cell to drill into the underlying shops.
 
 ---
+
+## 3. Phase 2 — Audio review & mystery caller workflow
+
+Mystery callers are a different evaluation type than in-store visits and need their own UX. Phase 2 adds audio handling on top of the Phase 1 scorecard so a caller recording can be uploaded, reviewed with timestamp-anchored comments, and released to the employee.
+
+### 3.1 Uploading a caller recording
+
+When you create a shop with `type = call`, the entry wizard adds an **Audio** step:
+
+1. Choose **New Shop → Mystery Caller**. The caller-specific rubric loads automatically (different from the in-store visit rubric).
+2. Step through the wizard as in Phase 1 (location, date, shopper info, evaluated employee, etc.).
+3. At the **Audio** step, upload the recording. The file is stored on Stine infrastructure, encrypted at rest, and an `Attachment` record is created with the file's duration and a `retention_until` date computed from the policy (default 12 months — see §3.4).
+4. Continue through the rubric and submit.
+
+> **Louisiana / Mississippi:** Both states are one-party consent. Internal mystery callers should consent at the start of their engagement, and HR should have an acknowledgment form on file before launch. The app records who uploaded the audio and when, but consent itself is handled outside the app.
+
+### 3.2 Reviewing audio with time-anchored comments
+
+When you open a caller shop as a reviewer, you'll see an **embedded audio player** with:
+
+- **Waveform** display
+- **Timestamp scrubber** — click anywhere on the timeline to jump
+- **Playback speed** control (0.5x, 1x, 1.5x, 2x)
+- **Comment-anchor button** — drops a comment at the current playhead
+
+To leave a time-anchored comment:
+
+1. Click the timeline (or pause) at the moment you want to mark — e.g. `01:42` when the caller asks about delivery and the rep says "I don't know."
+2. Click **Add Comment at 01:42**.
+3. Type the comment. It's saved with `audio_timestamp_seconds = 102` against the shop.
+
+All comments appear in a **time-ordered list** alongside the player. Clicking a comment in the list jumps the player to that moment. You can leave as many comments as you want, and other reviewers (manager, district) can add their own.
+
+### 3.3 Releasing the review to the employee
+
+By default, audio comments and the manager's review are **not visible to the employee** until the manager explicitly releases them. This gives the manager a chance to:
+
+- Review the recording themselves first
+- Edit or delete any premature comments
+- Add the manager summary and action plans before the employee sees the package
+
+Once you click **Mark Review Complete** (the same button as in §2.3), the audio, comments, manager summary, and action plans become visible on the employee's shop detail page. The employee gets a notification and can play the recording, scrub through it, and read the time-anchored comments in context.
+
+### 3.4 Privacy & retention controls
+
+The platform enforces audio retention rules automatically:
+
+- **Default retention:** 12 months from the shop date, after which the audio file is auto-deleted (the `Shop` and `ShopAnswer` records are kept; only the `Attachment` is purged).
+- **Configurable** by an admin via `SystemConfig.audio.retention_days`.
+- **Legal hold:** an admin can flag a specific `Attachment` to skip auto-delete if it's needed for an HR or legal matter.
+- **Audit:** every audio upload, playback, and deletion is recorded in `AuditLog` (admin-visible).
+- **PII discipline:** as in Phase 1, only `shopper_name` and `shopper_external_ref` are stored — never shopper home addresses or personal contact info.
+
+Employees retain their **right-to-know** export: a self-serve button in employee settings produces a full export of their own data, including any audio they were evaluated on (subject to retention).
+
+---
