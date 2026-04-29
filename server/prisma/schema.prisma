@@ -346,12 +346,14 @@ model UserBadge {
 }
 
 model League {
-  id          String   @id @default(uuid())
-  name        String
-  periodStart DateTime
-  periodEnd   DateTime
-  storeIds    String[]
-  createdAt   DateTime @default(now())
+  id            String   @id @default(uuid())
+  name          String
+  tier          Int      @default(1)
+  periodStart   DateTime
+  periodEnd     DateTime
+  storeIds      String[]
+  rolledOverAt  DateTime?
+  createdAt     DateTime @default(now())
 }
 
 model Challenge {

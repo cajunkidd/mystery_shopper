@@ -92,10 +92,12 @@ router.post("/reviews/:id/complete", requireRole("store_manager", "district_mana
       percentage: review.shop.percentage,
       shopDate: review.shop.shopDate,
     });
-    // Phase 4 microlearning: low section scores trigger training assignment.
+    // Phase 4 microlearning: low section scores trigger training assignment
+    // plus a co-created action plan so the employee sees one queue, not two.
     const training = await assignTrainingForLowSections(prisma, {
       id: review.shop.id,
       evaluatedEmployeeId: review.shop.evaluatedEmployeeId,
+      reviewerId: review.reviewerId,
     });
     for (const aId of training.assignmentIds) {
       await notify(

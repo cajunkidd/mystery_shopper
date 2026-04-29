@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
+import { notify } from "../notifications.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -85,11 +86,48 @@ router.post(
   async (req, res) => {
     const parsed = retestBody.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    const original = await prisma.trainingAssignment.findUnique({ where: { id: req.params.id } });
+    if (!original) return res.status(404).json({ error: "not_found" });
+
     const updated = await prisma.trainingAssignment.update({
-      where: { id: req.params.id },
+      where: { id: original.id },
       data: { retestShopId: parsed.data.retestShopId },
     });
-    res.json({ assignment: updated });
+
+    // Compute the trigger-section percentage on the retest shop and notify on improvement.
+    let evaluation: { section: string | null; before: number | null; after: number; delta: number } | null = null;
+    if (original.triggerSection) {
+      const answers = await prisma.shopAnswer.findMany({
+        where: { shopId: parsed.data.retestShopId },
+        include: { question: { select: { maxScore: true, section: { select: { name: true } } } } },
+      });
+      let score = 0;
+      let max = 0;
+      for (const a of answers) {
+        if (a.question.section.name === original.triggerSection) {
+          score += a.scoreAwarded;
+          max += a.question.maxScore;
+        }
+      }
+      if (max > 0) {
+        const after = (score / max) * 100;
+        const before = original.triggerScorePct ?? null;
+        const delta = before == null ? 0 : after - before;
+        evaluation = { section: original.triggerSection, before, after, delta };
+        if (delta >= 10) {
+          await notify(
+            prisma,
+            original.userId,
+            "retest_improved",
+            `Retest improvement on ${original.triggerSection}`,
+            `+${delta.toFixed(1)} points vs. trigger shop`,
+            "/training",
+          );
+        }
+      }
+    }
+
+    res.json({ assignment: updated, evaluation });
   },
 );
 

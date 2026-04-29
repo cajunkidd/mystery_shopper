@@ -94,6 +94,14 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **League auto-promotion at period end (§6.5)** — `League` gained `tier` and `rolledOverAt`. Hourly scheduler calls `rolloverLeagues` which, for each adjacent tier pair, swaps the lowest-avg store in the upper tier with the highest-avg store in the next tier down. Idempotent via `rolledOverAt`. 3 tests cover the no-op, swap, and idempotency cases.
+- **Retest auto-evaluation** — when a manager links a retest shop to a training assignment, the server computes that shop's percentage on the trigger section and notifies the employee if it improved by ≥10 points.
+- **Action plan + training co-creation** — when training is auto-assigned during review-complete, an action plan referencing the training module is also created so the employee sees one unified queue. 2 tests cover the with-reviewer and without-reviewer paths.
+- **Action plan filters** — `/action-plans` now offers scope (mine / assigned by me / all in scope) and status filters in the UI.
+- **More integration tests** — coverage for: forbidding store managers from CSV user import, district managers from rubric activate, employees from running jobs, plus rejection of wrong-secret / non-existent-user / expired tokens. **61 tests total.**
+
+## Earlier additions
+
 - **Training-module admin UI** — `/admin/training`: create, edit, activate/deactivate training modules. The `rubricSectionMatch` field is what auto-assignment keys off.
 - **Retest linking** — managers can link a follow-up shop to a verified or completed training assignment from the Training page; the assignment then renders a "retest →" link to the new shop.
 - **Bulk user CSV import** — Users page has a "+ Bulk import users from CSV" expandable. Each row's temporary password is returned in-memory only (never persisted in plain) so the admin can hand it out and rotate.

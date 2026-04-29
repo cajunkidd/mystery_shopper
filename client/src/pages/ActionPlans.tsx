@@ -27,11 +27,18 @@ export default function ActionPlans() {
   const { user } = useAuth();
   const [plans, setPlans] = useState<ActionPlan[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [scope, setScope] = useState<"all" | "mine" | "assigned-by-me">(
+    user?.role === "employee" ? "mine" : "all",
+  );
+  const [statusFilter, setStatusFilter] = useState("");
 
   function load() {
-    api<{ actionPlans: ActionPlan[] }>("/action-plans").then((r) => setPlans(r.actionPlans));
+    const q = scope === "all" ? "" : `?scope=${scope}`;
+    api<{ actionPlans: ActionPlan[] }>(`/action-plans${q}`).then((r) => setPlans(r.actionPlans));
   }
-  useEffect(load, []);
+  useEffect(load, [scope]);
+
+  const filtered = plans?.filter((p) => !statusFilter || p.status === statusFilter) ?? null;
 
   async function act(id: string, action: "acknowledge" | "complete" | "verify") {
     setBusy(id);
@@ -43,10 +50,34 @@ export default function ActionPlans() {
     }
   }
 
-  if (!plans || !user) return <p className="text-slate-500">Loading…</p>;
+  if (!filtered || !user) return <p className="text-slate-500">Loading…</p>;
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Action plans</h1>
+      <div className="card flex flex-wrap items-end gap-3">
+        {user.role !== "employee" && (
+          <div>
+            <label className="label">Scope</label>
+            <select className="input" value={scope} onChange={(e) => setScope(e.target.value as typeof scope)}>
+              <option value="all">All in scope</option>
+              <option value="mine">Assigned to me</option>
+              <option value="assigned-by-me">Assigned by me</option>
+            </select>
+          </div>
+        )}
+        <div>
+          <label className="label">Status</label>
+          <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="open">Open</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="in_progress">In progress</option>
+            <option value="completed">Completed</option>
+            <option value="verified">Verified</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+      </div>
       <div className="card overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead className="text-left text-slate-500 text-xs uppercase">
@@ -61,12 +92,12 @@ export default function ActionPlans() {
             </tr>
           </thead>
           <tbody>
-            {plans.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-slate-400">No open action plans.</td>
+                <td colSpan={7} className="py-6 text-center text-slate-400">No matching action plans.</td>
               </tr>
             )}
-            {plans.map((p) => {
+            {filtered.map((p) => {
               const isMine = p.assignedTo.id === user.id;
               const canVerify = ["store_manager", "district_manager", "admin"].includes(user.role);
               return (

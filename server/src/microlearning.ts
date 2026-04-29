@@ -12,13 +12,14 @@ export const LOW_SECTION_THRESHOLD = 70;
 interface ShopForMicrolearning {
   id: string;
   evaluatedEmployeeId: string;
+  reviewerId?: string | null;
 }
 
 export async function assignTrainingForLowSections(
   prisma: PrismaClient,
   shop: ShopForMicrolearning,
-): Promise<{ assignmentIds: string[] }> {
-  if (!shop.evaluatedEmployeeId) return { assignmentIds: [] };
+): Promise<{ assignmentIds: string[]; actionPlanIds: string[] }> {
+  if (!shop.evaluatedEmployeeId) return { assignmentIds: [], actionPlanIds: [] };
 
   const answers = await prisma.shopAnswer.findMany({
     where: { shopId: shop.id },
@@ -34,6 +35,7 @@ export async function assignTrainingForLowSections(
   }
 
   const ids: string[] = [];
+  const actionPlanIds: string[] = [];
   for (const [, sec] of sectionAgg) {
     if (sec.max === 0) continue;
     const pct = (sec.score / sec.max) * 100;
@@ -64,6 +66,22 @@ export async function assignTrainingForLowSections(
       },
     });
     ids.push(a.id);
+
+    // Co-create an action plan that points to the training module so the
+    // employee sees one unified todo list, not two parallel queues.
+    if (shop.reviewerId) {
+      const ap = await prisma.actionPlan.create({
+        data: {
+          shopId: shop.id,
+          assignedToId: shop.evaluatedEmployeeId,
+          assignedById: shop.reviewerId,
+          category: sec.name,
+          description: `Complete training: ${module.name}${module.url ? ` (${module.url})` : ""}`,
+          dueDate: new Date(Date.now() + 14 * 86400 * 1000),
+        },
+      });
+      actionPlanIds.push(ap.id);
+    }
   }
-  return { assignmentIds: ids };
+  return { assignmentIds: ids, actionPlanIds };
 }

@@ -131,3 +131,59 @@ describe("health", () => {
     expect(res.body).toEqual({ ok: true });
   });
 });
+
+describe("more role gating", () => {
+  it("forbids store managers from CSV import (admin only)", async () => {
+    const MGR = { ...EMPLOYEE, id: "u-mgr-i", role: "store_manager" as const };
+    userMap.set(MGR.id, MGR);
+    const res = await request(app)
+      .post("/api/v1/imports/users")
+      .set("Authorization", `Bearer ${token(MGR.id)}`)
+      .send({ rows: [], mapping: { email: "email", fullName: "name", role: "role" } });
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids district managers from rubric activate (admin only)", async () => {
+    const DM = { ...EMPLOYEE, id: "u-dm", role: "district_manager" as const };
+    userMap.set(DM.id, DM);
+    const res = await request(app)
+      .post("/api/v1/rubrics/some-id/activate")
+      .set("Authorization", `Bearer ${token(DM.id)}`)
+      .send({});
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids employees from running scheduled jobs", async () => {
+    userMap.set(EMPLOYEE.id, EMPLOYEE);
+    const res = await request(app)
+      .post("/api/v1/admin/jobs/run")
+      .set("Authorization", `Bearer ${token(EMPLOYEE.id)}`)
+      .send({});
+    expect(res.status).toBe(403);
+  });
+
+  it("rejects token signed with the wrong secret", async () => {
+    userMap.set(EMPLOYEE.id, EMPLOYEE);
+    const wrong = (await import("jsonwebtoken")).default.sign({ sub: EMPLOYEE.id }, "wrong-secret", {
+      expiresIn: "1h",
+    });
+    const res = await request(app).get("/api/v1/locations").set("Authorization", `Bearer ${wrong}`);
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects token for a non-existent user id", async () => {
+    const res = await request(app)
+      .get("/api/v1/locations")
+      .set("Authorization", `Bearer ${token("u-ghost")}`);
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects expired tokens", async () => {
+    userMap.set(EMPLOYEE.id, EMPLOYEE);
+    const expired = (await import("jsonwebtoken")).default.sign({ sub: EMPLOYEE.id }, JWT_SECRET, {
+      expiresIn: -10,
+    });
+    const res = await request(app).get("/api/v1/locations").set("Authorization", `Bearer ${expired}`);
+    expect(res.status).toBe(401);
+  });
+});

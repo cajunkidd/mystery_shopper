@@ -13,6 +13,7 @@ router.get("/leagues", async (_req, res) => {
 
 const upsertLeague = z.object({
   name: z.string().min(1),
+  tier: z.number().int().min(1).default(1),
   periodStart: z.string(),
   periodEnd: z.string(),
   storeIds: z.array(z.string().uuid()).min(2).max(8),
@@ -24,6 +25,7 @@ router.post("/leagues", requireRole("admin"), async (req, res) => {
   const league = await prisma.league.create({
     data: {
       name: parsed.data.name,
+      tier: parsed.data.tier,
       periodStart: new Date(parsed.data.periodStart),
       periodEnd: new Date(parsed.data.periodEnd),
       storeIds: parsed.data.storeIds,

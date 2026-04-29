@@ -6,12 +6,14 @@ import fs from "node:fs";
 import { prisma } from "./db.js";
 import { uploadPath } from "./uploads.js";
 import { notify } from "./notifications.js";
+import { rolloverLeagues } from "./leagues.js";
 
 interface JobResult {
   overdueMarked: number;
   remindersSent: number;
   attachmentsDeleted: number;
   digestsSent: number;
+  leaguesRolledOver: number;
 }
 
 const DIGEST_INTERVAL_MS = 7 * 86400 * 1000;
@@ -140,7 +142,16 @@ export async function runJobs(): Promise<JobResult> {
   // 4. Manager weekly digest.
   const digestsSent = await sendManagerDigests(now);
 
-  return { overdueMarked: stale.length, remindersSent, attachmentsDeleted, digestsSent };
+  // 5. League rollover at period end.
+  const rollover = await rolloverLeagues(prisma, now);
+
+  return {
+    overdueMarked: stale.length,
+    remindersSent,
+    attachmentsDeleted,
+    digestsSent,
+    leaguesRolledOver: rollover.rolledOver,
+  };
 }
 
 let started = false;
