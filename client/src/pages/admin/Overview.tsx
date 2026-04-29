@@ -24,15 +24,22 @@ interface Health {
   scheduler: { enabled: boolean };
 }
 
+interface Version {
+  version: string;
+  node: string;
+}
+
 export default function AdminOverview() {
   const [data, setData] = useState<Overview | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
+  const [version, setVersion] = useState<Version | null>(null);
   const [running, setRunning] = useState(false);
   const [lastJobResult, setLastJobResult] = useState<unknown>(null);
 
   useEffect(() => {
     api<Overview>("/admin/overview").then(setData);
     api<Health>("/health").then(setHealth);
+    api<Version>("/version").then(setVersion);
   }, []);
 
   async function runJobsNow() {
@@ -96,6 +103,12 @@ export default function AdminOverview() {
             </li>
             <li className="text-xs text-slate-500">
               Uptime: {Math.floor(health.uptimeSeconds / 3600)}h {Math.floor((health.uptimeSeconds % 3600) / 60)}m
+              {version && (
+                <>
+                  {" · "}
+                  <span className="font-mono">v{version.version}</span> on {version.node}
+                </>
+              )}
             </li>
           </ul>
           <button className="btn-secondary text-xs mt-3" disabled={running} onClick={runJobsNow}>

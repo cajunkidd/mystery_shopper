@@ -106,6 +106,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **GitHub Actions CI** — `.github/workflows/ci.yml` runs on every push and PR to `main`. Two jobs: server (`prisma generate`, `typecheck`, `vitest`) and client (`tsc --noEmit`, `vitest`, `vite build`). Both jobs use Node 20 with cached `npm ci`.
+- **Request logging** — one line per response in dev/prod (skipped in tests and on `/health` to keep load-balancer probes out of the log): `2026-04-29T10:21:33.412Z  POST   /api/v1/shops                   201  147ms`. 5xx logs go to `console.error` so they're easier to grep.
+- **`/api/v1/version`** — returns `{ version, node }` read once at startup from `package.json`. Surfaced on the admin overview status card so operators can confirm what's deployed without shelling into the box.
+
+## Earlier additions
+
 - **Docker setup** — `server/Dockerfile` (multi-stage Node 20 → slim runtime; runs `prisma migrate deploy` on boot), `client/Dockerfile` (build → nginx serving the SPA with `/api` proxied to the API container), and a `docker-compose.yml` that wires Postgres + API + nginx in one `docker compose up --build`. README has the one-command bring-up.
 - **Response compression** — `compression()` is on for JSON. Filters out audio / PDF / image streams so we don't waste CPU double-compressing already-compressed binaries. Real wire-byte savings on the bigger endpoints (audit log, shop list, dashboards).
 - **Login: hide dev seed credentials in production** — the help line listing seeded passwords is now gated on `import.meta.env.DEV`, so prod builds don't leak them under the form. Also added `vite/client` reference so `import.meta.env` is properly typed.

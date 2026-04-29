@@ -25,6 +25,27 @@ import meRoutes from "./routes/me.js";
 import calibrationRoutes from "./routes/calibration.js";
 import trainingRoutes from "./routes/training.js";
 import { prisma } from "./db.js";
+import { requestLogger } from "./logging.js";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// Read package.json once at startup so /version is a constant-time response.
+function readBuildVersion(): { version: string; node: string } {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  // src/app.ts → ../package.json at dev; dist/app.js → ../package.json at build.
+  const candidates = [path.join(here, "..", "package.json"), path.join(here, "..", "..", "package.json")];
+  for (const c of candidates) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(c, "utf8")) as { version?: string };
+      if (pkg.version) return { version: pkg.version, node: process.version };
+    } catch {
+      /* try next */
+    }
+  }
+  return { version: "0.0.0", node: process.version };
+}
+const BUILD_VERSION = readBuildVersion();
 
 const startedAt = Date.now();
 
@@ -49,6 +70,7 @@ export function buildApp(): express.Express {
     }),
   );
   app.use(express.json({ limit: "5mb" }));
+  app.use(requestLogger);
 
   // Mount a tight rate limit on the login route only — the rest of the API
   // is gated by JWT and the points/badges endpoints aren't worth abusing.
@@ -112,6 +134,10 @@ export function buildApp(): express.Express {
 
   app.get("/api/v1/_routes", (_req, res) => {
     res.json({ routes: collectRoutes(app) });
+  });
+
+  app.get("/api/v1/version", (_req, res) => {
+    res.json(BUILD_VERSION);
   });
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
