@@ -42,6 +42,20 @@ export default function ActionPlans() {
 
   const [verifyId, setVerifyId] = useState<string | null>(null);
   const [verifyNotes, setVerifyNotes] = useState("");
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [reassignTo, setReassignTo] = useState("");
+  const [users, setUsers] = useState<{ id: string; fullName: string; email: string; role: string }[]>([]);
+
+  useEffect(() => {
+    if (!user || user.role === "employee") return;
+    // Store managers must scope to their own location; admin/district see all.
+    const q = user.role === "store_manager" && user.primaryLocationId
+      ? `?at=${user.primaryLocationId}`
+      : "";
+    api<{ users: { id: string; fullName: string; email: string; role: string; active: boolean }[] }>(`/users${q}`)
+      .then((r) => setUsers(r.users.filter((u) => u.active && u.role === "employee")))
+      .catch(() => undefined);
+  }, [user]);
 
   async function act(id: string, action: "acknowledge" | "complete" | "verify") {
     setBusy(id);
@@ -78,18 +92,20 @@ export default function ActionPlans() {
     }
   }
 
-  async function bulkReassign() {
-    if (!filtered) return;
-    const ids = filtered.filter((p) => ["open", "acknowledged", "in_progress", "overdue"].includes(p.status)).map((p) => p.id);
-    if (ids.length === 0) return;
-    const toUserId = window.prompt(`Reassign ${ids.length} open action plans to which user id?`);
-    if (!toUserId) return;
+  const reassignableIds = (filtered ?? [])
+    .filter((p) => ["open", "acknowledged", "in_progress", "overdue"].includes(p.status))
+    .map((p) => p.id);
+
+  async function confirmReassign() {
+    if (reassignableIds.length === 0 || !reassignTo) return;
     setBusy("reassign");
     try {
       await api("/action-plans/bulk-reassign", {
         method: "POST",
-        body: JSON.stringify({ ids, toUserId }),
+        body: JSON.stringify({ ids: reassignableIds, toUserId: reassignTo }),
       });
+      setReassignOpen(false);
+      setReassignTo("");
       load();
     } finally {
       setBusy(null);
@@ -106,13 +122,37 @@ export default function ActionPlans() {
               Verify {completedIds.length} completed
             </button>
           )}
-          {canVerify && (
-            <button className="btn-secondary text-sm" disabled={busy === "reassign"} onClick={bulkReassign}>
-              Reassign all open
+          {canVerify && reassignableIds.length > 0 && (
+            <button className="btn-secondary text-sm" disabled={busy === "reassign"} onClick={() => setReassignOpen(true)}>
+              Reassign {reassignableIds.length} open
             </button>
           )}
         </div>
       </div>
+      {reassignOpen && (
+        <div className="card border-stine-100 border-2">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-medium">Reassign {reassignableIds.length} open action plans</h2>
+            <button className="text-xs text-slate-500" onClick={() => setReassignOpen(false)}>close</button>
+          </div>
+          <p className="text-xs text-slate-500 mb-2">
+            The new assignee will get one rolled-up notification, not one per plan.
+          </p>
+          <div className="flex gap-2">
+            <select className="input flex-1" value={reassignTo} onChange={(e) => setReassignTo(e.target.value)}>
+              <option value="">— pick an employee —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.fullName} <span>({u.email})</span>
+                </option>
+              ))}
+            </select>
+            <button className="btn-primary" disabled={busy === "reassign" || !reassignTo} onClick={confirmReassign}>
+              {busy === "reassign" ? "Reassigning…" : "Reassign"}
+            </button>
+          </div>
+        </div>
+      )}
       <div className="card flex flex-wrap items-end gap-3">
         {user.role !== "employee" && (
           <div>

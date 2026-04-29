@@ -16,6 +16,9 @@ router.get("/", async (req, res) => {
     orderBy: [{ type: "asc" }, { version: "desc" }],
     include: { _count: { select: { sections: true, shops: true } } },
   });
+  // Active rubrics change at activate/retire time; 60 seconds is plenty short
+  // to pick those changes up while still cutting wizard-load chatter.
+  res.setHeader("Cache-Control", "private, max-age=60");
   res.json({ rubrics });
 });
 

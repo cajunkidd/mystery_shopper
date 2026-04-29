@@ -94,6 +94,12 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **User picker for bulk reassign** — replaced the rough `prompt()` with a proper expandable card on `/action-plans`: select an active employee, see their email next to their name, click Reassign. Backend `GET /users` now accepts `?at=<locationId>` and lets store managers list employees at their own location (admin/district still see all).
+- **Settings exposes data export** — the §11 "right to know" download is now reachable from `/settings` with a one-line rationale, not just the employee dashboard.
+- **Cache headers on static lookups** — `GET /locations` is `Cache-Control: private, max-age=300`; `GET /rubrics` is `private, max-age=60`. Cuts wizard-load chatter without ever serving a stale active rubric for more than a minute.
+
+## Earlier additions
+
 - **Pagination UI** — `GET /admin/audit-log` now returns a `nextBefore` cursor (ISO timestamp of the oldest row in the page); the audit-log page exposes a "Load older entries" button that uses it. Shop list does page-based fetching: each "Load more shops" click bumps `?limit` by 50.
 - **Bulk reassign action plans** — `POST /action-plans/bulk-reassign` flips up to 100 plans to a new assignee in one updateMany; sends a single rolled-up notification to the target. UI button on `/action-plans` ("Reassign all open") prompts for the target user id and calls it.
 - **Second RTL component test** — `Login.test.tsx` mocks `useAuth`, asserts the submit button reads "Signing in…" while the in-flight promise hasn't resolved, and asserts the rose error message appears when login rejects. Found and fixed an a11y bug along the way: Login's `<label>`s weren't associated with their inputs (no `htmlFor`/`id`). **85 tests total** (71 server + 14 client).

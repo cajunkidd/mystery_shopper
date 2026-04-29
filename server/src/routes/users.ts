@@ -8,8 +8,26 @@ const router = Router();
 
 router.use(requireAuth);
 
-router.get("/", requireRole("admin", "district_manager"), async (_req, res) => {
+// Lists users. Admin / district see all; store managers can list their own
+// location's employees (passing ?at=<their-location-id>) so they can pick a
+// reassignment target without needing admin role.
+router.get("/", async (req, res) => {
+  const u = req.user!;
+  const at = (req.query.at as string | undefined) ?? undefined;
+  const where: Record<string, unknown> = {};
+  if (u.role === "admin") {
+    if (at) where.primaryLocationId = at;
+  } else if (u.role === "district_manager") {
+    if (at) where.primaryLocationId = at;
+  } else if (u.role === "store_manager") {
+    if (!at || at !== u.primaryLocationId) return res.status(403).json({ error: "forbidden" });
+    where.primaryLocationId = at;
+    where.role = "employee";
+  } else {
+    return res.status(403).json({ error: "forbidden" });
+  }
   const users = await prisma.user.findMany({
+    where,
     orderBy: { fullName: "asc" },
     select: {
       id: true,

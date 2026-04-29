@@ -8,6 +8,10 @@ router.use(requireAuth);
 
 router.get("/", async (_req, res) => {
   const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  // Locations change rarely; lets the browser reuse for 5 minutes per session.
+  // private so a shared CDN never serves it across users (location filter is
+  // role-gated; this endpoint isn't but the data isn't sensitive).
+  res.setHeader("Cache-Control", "private, max-age=300");
   res.json({ locations });
 });
 
