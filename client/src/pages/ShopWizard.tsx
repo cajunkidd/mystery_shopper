@@ -20,6 +20,7 @@ interface Section { id: string; name: string; displayOrder: number; questions: Q
 interface Rubric { id: string; name: string; type: RubricType; version: number; sections: Section[] }
 
 type AnswerMap = Record<string, { value: unknown; comment: string }>;
+type FileMap = Record<string, File | null>; // keyed by question id
 
 const STEPS = ["Location", "Type & Date", "Shopper", "Score", "Submit"] as const;
 
@@ -41,6 +42,7 @@ export default function ShopWizard() {
   const [narrative, setNarrative] = useState("");
 
   const [answers, setAnswers] = useState<AnswerMap>({});
+  const [files, setFiles] = useState<FileMap>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,6 +86,9 @@ export default function ShopWizard() {
           const n = Number(a);
           if (!Number.isNaN(n)) score += ((Math.max(1, Math.min(5, n)) - 1) / 4) * q.maxScore;
         } else if (q.questionType === "free_text" && a) score += q.maxScore;
+        else if ((q.questionType === "photo_required" || q.questionType === "audio_required") && a) {
+          score += q.maxScore;
+        }
       }
     }
     return { score, max };
@@ -107,12 +112,23 @@ export default function ShopWizard() {
   async function submit(asDraft: boolean) {
     if (!fullRubric) return;
     if (!asDraft) {
-      // Run client-side conditional-logic check before posting (server validates too).
+      // Run client-side conditional-logic check + photo-required check before
+      // posting (server validates conditional logic too; photo presence is
+      // currently a UI-only gate since the file goes up post-create).
       for (const s of fullRubric.sections) {
         for (const q of s.questions) {
           const a = answers[q.id];
           if (commentRequired(q, a?.value) && (!a?.comment || !a.comment.trim())) {
             setError(`A comment is required for: "${q.text}"`);
+            setStep(3);
+            return;
+          }
+          if (
+            q.required &&
+            (q.questionType === "photo_required" || q.questionType === "audio_required") &&
+            !files[q.id]
+          ) {
+            setError(`A file is required for: "${q.text}"`);
             setStep(3);
             return;
           }
@@ -142,6 +158,30 @@ export default function ShopWizard() {
         submit: !asDraft,
       };
       const r = await api<{ id: string }>("/shops", { method: "POST", body: JSON.stringify(payload) });
+
+      // Upload any per-question files now that the shop exists. The shop GET
+      // returns answer ids keyed by questionId, which the attachments endpoint
+      // expects in the multipart body.
+      const filesToUpload = Object.entries(files).filter(([, f]) => f);
+      if (filesToUpload.length > 0) {
+        const detail = await api<{ shop: { answers: { id: string; questionId: string }[] } }>(`/shops/${r.id}`);
+        const answerIdByQ = new Map(detail.shop.answers.map((a) => [a.questionId, a.id]));
+        const token = localStorage.getItem("token");
+        await Promise.all(
+          filesToUpload.map(async ([questionId, file]) => {
+            const answerId = answerIdByQ.get(questionId);
+            if (!answerId || !file) return;
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("shopAnswerId", answerId);
+            await fetch(`/api/v1/shops/${r.id}/attachments`, {
+              method: "POST",
+              body: fd,
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+          }),
+        );
+      }
       nav(`/shops/${r.id}`);
     } catch (e) {
       setError((e as Error).message);
@@ -312,6 +352,25 @@ export default function ShopWizard() {
                         value={(answers[q.id]?.value as string) ?? ""}
                         onChange={(e) => update(q.id, { value: e.target.value })}
                       />
+                    )}
+                    {(q.questionType === "photo_required" || q.questionType === "audio_required") && (
+                      <div className="space-y-1">
+                        <input
+                          type="file"
+                          accept={q.questionType === "audio_required" ? "audio/*" : "image/*"}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0] ?? null;
+                            setFiles((prev) => ({ ...prev, [q.id]: f }));
+                            // Mark answer present so the running-score helper credits it.
+                            update(q.id, { value: f ? f.name : null });
+                          }}
+                        />
+                        {files[q.id] && (
+                          <div className="text-xs text-emerald-700">
+                            ✓ {files[q.id]!.name} ({Math.round(files[q.id]!.size / 1024)} KB) — uploaded after submit
+                          </div>
+                        )}
+                      </div>
                     )}
                     {(() => {
                       const needsComment = commentRequired(q, answers[q.id]?.value);

@@ -94,6 +94,10 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Photo / audio question types in the wizard** — `photo_required` and `audio_required` rubric questions now show a file input during entry. The file is held in client state through the wizard, and after the shop is created the wizard fetches its `answer.id`s and uploads each file to the matching answer via the existing attachments endpoint. Validation: a `photo_required` or `audio_required` question marked `required` blocks submit until a file is attached. Running-score helper credits these answers as max-points-on-presence (parity with the server's `scoreAnswer`).
+
+## Earlier additions
+
 - **404 page + global error boundary** — unknown routes render a friendly Not Found page instead of breaking out of the layout. A React `ErrorBoundary` wraps the whole app: a thrown render error shows a recovery card with Reload / Try-again instead of a blank screen.
 - **`GET /api/v1/_routes`** — walks Express's router stack and emits `{ method, path }` for every registered route. Cheap auto-documentation for engineers who don't want to read the source.
 - **Frontend test setup** — vitest with jsdom is wired up; 11 client tests cover the extracted CSV row parser and the manager review-queue aging helper. Reusable utilities moved into `client/src/lib/` so the same code is exercised by both unit tests and the dashboard / import widgets. **82 tests total** (71 server, 11 client).
