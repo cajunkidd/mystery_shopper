@@ -71,9 +71,75 @@ router.get("/audit-log", async (req, res) => {
     orderBy: { occurredAt: "desc" },
     take: limit,
   });
+
+  // Resolve actor names + entity labels in two batched lookups so a 50-row
+  // page is at most three round-trips (audit + actors + entities-per-type).
+  const actorIds = Array.from(new Set(items.map((i) => i.actorId).filter((x): x is string => !!x)));
+  const actors = await prisma.user.findMany({
+    where: { id: { in: actorIds } },
+    select: { id: true, fullName: true, email: true },
+  });
+  const actorById = new Map(actors.map((u) => [u.id, u]));
+
+  const enriched = await Promise.all(
+    items.map(async (i) => {
+      const actor = i.actorId ? actorById.get(i.actorId) : null;
+      const entityLabel = await resolveEntityLabel(i.entityType, i.entityId);
+      return {
+        ...i,
+        actorLabel: actor ? `${actor.fullName} <${actor.email}>` : null,
+        entityLabel,
+      };
+    }),
+  );
+
   const nextBefore = items.length === limit ? items[items.length - 1].occurredAt.toISOString() : null;
-  res.json({ items, nextBefore });
+  res.json({ items: enriched, nextBefore });
 });
+
+// Map entity-type + id → human-readable label. Returns null when the row was
+// deleted (entries stay around even after the underlying entity is gone).
+async function resolveEntityLabel(entityType: string, entityId: string): Promise<string | null> {
+  switch (entityType) {
+    case "user": {
+      const u = await prisma.user.findUnique({
+        where: { id: entityId },
+        select: { fullName: true, email: true },
+      });
+      return u ? `${u.fullName} <${u.email}>` : null;
+    }
+    case "rubric": {
+      const r = await prisma.rubric.findUnique({
+        where: { id: entityId },
+        select: { name: true, type: true, version: true },
+      });
+      return r ? `${r.name} (${r.type} v${r.version})` : null;
+    }
+    case "review": {
+      const r = await prisma.review.findUnique({
+        where: { id: entityId },
+        select: { shop: { select: { shopDate: true, location: { select: { code: true } } } } },
+      });
+      return r ? `Review of ${r.shop.location.code} ${r.shop.shopDate.toISOString().slice(0, 10)}` : null;
+    }
+    case "appeal": {
+      const a = await prisma.appeal.findUnique({
+        where: { id: entityId },
+        select: { shop: { select: { shopDate: true, location: { select: { code: true } } } } },
+      });
+      return a ? `Appeal on ${a.shop.location.code} ${a.shop.shopDate.toISOString().slice(0, 10)}` : null;
+    }
+    case "shop": {
+      const s = await prisma.shop.findUnique({
+        where: { id: entityId },
+        select: { shopDate: true, location: { select: { code: true } } },
+      });
+      return s ? `${s.location.code} ${s.shopDate.toISOString().slice(0, 10)}` : null;
+    }
+    default:
+      return null;
+  }
+}
 
 router.get("/config", async (_req, res) => {
   const items = await prisma.systemConfig.findMany();

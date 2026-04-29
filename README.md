@@ -95,6 +95,11 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Audit log: friendly labels** — `GET /admin/audit-log` now resolves the actor (`fullName <email>`) in one batched lookup and the entity in a per-row resolver: users → `Name <email>`, rubrics → `Name (type vN)`, reviews → `Review of LOC YYYY-MM-DD`, appeals → `Appeal on LOC YYYY-MM-DD`, shops → `LOC YYYY-MM-DD`. Deleted entities render as a slate-italic "deleted (UUID-prefix)" so the row is still useful. The admin page surfaces the new labels instead of UUID prefixes.
+- **Third RTL test** — `Settings.test.tsx` mocks `useAuth` and the API helper, asserts the user identity card renders the seeded name + email + the §11 "Download my data" button, and asserts that flipping the SMS toggle PATCHes `/me/preferences` with the right body. **87 tests total** (71 server + 16 client).
+
+## Earlier additions
+
 - **Demo data seed** — `npm run seed:demo` populates 8 sample shops across 2 employees and 2 locations (mixing high / okay / poor scores), an in-progress review on the most recent submission, an overdue + an open action plan, an open appeal, a training module + auto-style assignment, and a league. Idempotent: re-running wipes prior `demo:`-tagged rows first. Makes a fresh install immediately interactive.
 - **Mobile bottom nav for employees (§7)** — sticky bottom bar on `<sm` breakpoints with 4 large tap targets: Dashboard, Shops, Recognition, Training. Renders only for employees per spec (§7: mobile-first for employees, desktop-first acceptable for managers/admin). The desktop top nav still works on larger screens.
 

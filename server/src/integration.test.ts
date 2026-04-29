@@ -18,7 +18,7 @@ const findUnique = vi.fn(async ({ where }: { where: { id: string } }) => userMap
 vi.mock("./db.js", () => ({
   prisma: {
     $queryRawUnsafe: vi.fn().mockResolvedValue([{ "?column?": 1 }]),
-    user: { findUnique },
+    user: { findUnique, findMany: vi.fn().mockResolvedValue([]) },
     location: { findMany: vi.fn().mockResolvedValue([]) },
     rubric: { findMany: vi.fn().mockResolvedValue([]) },
     auditLog: { findMany: vi.fn().mockResolvedValue([]) },

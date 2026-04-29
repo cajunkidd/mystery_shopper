@@ -4,8 +4,10 @@ import { api } from "../../api";
 interface AuditEntry {
   id: string;
   actorId: string | null;
+  actorLabel: string | null;
   entityType: string;
   entityId: string;
+  entityLabel: string | null;
   action: string;
   before: unknown;
   after: unknown;
@@ -76,9 +78,16 @@ export default function AuditLog() {
               {items.map((i) => (
                 <tr key={i.id} className="border-t align-top">
                   <td className="py-2 pr-4 text-xs text-slate-500">{new Date(i.occurredAt).toLocaleString()}</td>
-                  <td className="pr-4 text-xs font-mono">{i.actorId?.slice(0, 8) ?? "—"}</td>
-                  <td className="pr-4">{i.entityType} <span className="text-xs text-slate-400">{i.entityId.slice(0, 8)}</span></td>
-                  <td className="pr-4">{i.action}</td>
+                  <td className="pr-4 text-xs">
+                    {i.actorLabel ?? <span className="text-slate-400 font-mono">{i.actorId?.slice(0, 8) ?? "—"}</span>}
+                  </td>
+                  <td className="pr-4">
+                    <span className="text-xs uppercase text-slate-500">{i.entityType}</span>
+                    <div className="text-sm">
+                      {i.entityLabel ?? <span className="text-slate-400 italic text-xs">deleted ({i.entityId.slice(0, 8)})</span>}
+                    </div>
+                  </td>
+                  <td className="pr-4 text-sm">{i.action}</td>
                   <td className="pr-4 text-xs font-mono text-slate-500">{JSON.stringify(i.before)}</td>
                   <td className="text-xs font-mono text-slate-500">{JSON.stringify(i.after)}</td>
                 </tr>
