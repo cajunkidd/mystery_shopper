@@ -6,6 +6,7 @@ import { awardForCompletedShop } from "../points.js";
 import { evaluateBadgesForUser } from "../badges.js";
 import { notify } from "../notifications.js";
 import { audit } from "../audit.js";
+import { assignTrainingForLowSections } from "../microlearning.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -91,6 +92,22 @@ router.post("/reviews/:id/complete", requireRole("store_manager", "district_mana
       percentage: review.shop.percentage,
       shopDate: review.shop.shopDate,
     });
+    // Phase 4 microlearning: low section scores trigger training assignment.
+    const training = await assignTrainingForLowSections(prisma, {
+      id: review.shop.id,
+      evaluatedEmployeeId: review.shop.evaluatedEmployeeId,
+    });
+    for (const aId of training.assignmentIds) {
+      await notify(
+        prisma,
+        review.shop.evaluatedEmployeeId,
+        "training_assigned",
+        "A training module was assigned to you",
+        `Linked to your shop on ${review.shop.shopDate.toISOString().slice(0, 10)}.`,
+        `/training`,
+      );
+      void aId;
+    }
 
     // Notify the employee that their review is complete.
     await notify(

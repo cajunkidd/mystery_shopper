@@ -20,6 +20,7 @@ import adminRoutes from "./routes/admin.js";
 import huntRoutes from "./routes/hunt.js";
 import meRoutes from "./routes/me.js";
 import calibrationRoutes from "./routes/calibration.js";
+import trainingRoutes from "./routes/training.js";
 
 export function buildApp(): express.Express {
   const app = express();
@@ -47,6 +48,7 @@ export function buildApp(): express.Express {
   app.use("/api/v1", huntRoutes);
   app.use("/api/v1", meRoutes);
   app.use("/api/v1", calibrationRoutes);
+  app.use("/api/v1", trainingRoutes);
   app.use("/api/v1/admin", adminRoutes);
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

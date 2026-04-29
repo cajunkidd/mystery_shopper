@@ -15,6 +15,7 @@ const NAV: NavItem[] = [
   { to: "/action-plans", label: "Action Plans", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/appeals", label: "Appeals", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/recognition", label: "Recognition", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/training", label: "Training", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/heatmap", label: "Heatmap", roles: ["store_manager", "district_manager", "admin"] },
   { to: "/admin/rubrics", label: "Rubrics", roles: ["admin"] },
   { to: "/admin/users", label: "Users", roles: ["admin"] },

@@ -11,6 +11,63 @@ interface JobResult {
   overdueMarked: number;
   remindersSent: number;
   attachmentsDeleted: number;
+  digestsSent: number;
+}
+
+const DIGEST_INTERVAL_MS = 7 * 86400 * 1000;
+
+async function sendManagerDigests(now: Date): Promise<number> {
+  const managers = await prisma.user.findMany({
+    where: { role: "store_manager", active: true, primaryLocationId: { not: null } },
+    select: { id: true, primaryLocationId: true },
+  });
+  let sent = 0;
+  for (const m of managers) {
+    const lastDigest = await prisma.notification.findFirst({
+      where: { userId: m.id, kind: "manager_digest" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (lastDigest && now.getTime() - lastDigest.createdAt.getTime() < DIGEST_INTERVAL_MS) continue;
+
+    const since = new Date(now.getTime() - DIGEST_INTERVAL_MS);
+    const [recent, queueCount, openAppeals, openPlans] = await Promise.all([
+      prisma.shop.findMany({
+        where: {
+          locationId: m.primaryLocationId!,
+          status: { not: "draft" },
+          shopDate: { gte: since },
+        },
+        select: { percentage: true },
+      }),
+      prisma.shop.count({
+        where: { locationId: m.primaryLocationId!, status: { in: ["submitted", "under_review"] } },
+      }),
+      prisma.appeal.count({
+        where: { shop: { locationId: m.primaryLocationId! }, status: { in: ["open", "under_review"] } },
+      }),
+      prisma.actionPlan.count({
+        where: {
+          shop: { locationId: m.primaryLocationId! },
+          status: { in: ["open", "acknowledged", "in_progress", "overdue"] },
+        },
+      }),
+    ]);
+    const avg = recent.length ? recent.reduce((a, s) => a + s.percentage, 0) / recent.length : 0;
+    const body =
+      `Past 7 days: ${recent.length} shops, avg ${avg.toFixed(0)}%. ` +
+      `Queue: ${queueCount}. Open appeals: ${openAppeals}. Open action plans: ${openPlans}.`;
+    await prisma.notification.create({
+      data: {
+        userId: m.id,
+        kind: "manager_digest",
+        title: "Weekly digest",
+        body,
+        link: "/",
+      },
+    });
+    sent += 1;
+  }
+  return sent;
 }
 
 export async function runJobs(): Promise<JobResult> {
@@ -80,7 +137,10 @@ export async function runJobs(): Promise<JobResult> {
     attachmentsDeleted += 1;
   }
 
-  return { overdueMarked: stale.length, remindersSent, attachmentsDeleted };
+  // 4. Manager weekly digest.
+  const digestsSent = await sendManagerDigests(now);
+
+  return { overdueMarked: stale.length, remindersSent, attachmentsDeleted, digestsSent };
 }
 
 let started = false;

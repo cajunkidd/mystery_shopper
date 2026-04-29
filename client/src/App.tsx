@@ -9,6 +9,7 @@ import ShopDetail from "./pages/ShopDetail";
 import ActionPlans from "./pages/ActionPlans";
 import Appeals from "./pages/Appeals";
 import Gamification from "./pages/Gamification";
+import Training from "./pages/Training";
 import HeatmapPage from "./pages/Heatmap";
 import District from "./pages/District";
 import Rubrics from "./pages/admin/Rubrics";
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="action-plans" element={<ActionPlans />} />
         <Route path="appeals" element={<Appeals />} />
         <Route path="recognition" element={<Gamification />} />
+        <Route path="training" element={<Training />} />
         <Route
           path="heatmap"
           element={

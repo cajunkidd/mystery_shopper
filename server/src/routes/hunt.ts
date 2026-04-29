@@ -104,4 +104,45 @@ router.get("/hunt/campaigns/:id/reveals", requireRole("store_manager", "district
   res.json({ reveals });
 });
 
+// Employee guesses which past shop was a Hunt — correct guesses earn small bonus points.
+const guessBody = z.object({ shopId: z.string().uuid() });
+router.post("/hunt/campaigns/:id/guess", async (req, res) => {
+  const u = req.user!;
+  if (u.role !== "employee") return res.status(403).json({ error: "forbidden" });
+  const parsed = guessBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+
+  const reveal = await prisma.huntReveal.findFirst({
+    where: { huntCampaignId: req.params.id, shopId: parsed.data.shopId },
+  });
+
+  // Already-guessed guard: each employee can register one guess per campaign.
+  const allReveals = await prisma.huntReveal.findMany({
+    where: { huntCampaignId: req.params.id },
+    select: { id: true, identifiedByEmployees: true },
+  });
+  const alreadyGuessed = allReveals.some((r) => r.identifiedByEmployees.includes(u.id));
+  if (alreadyGuessed) return res.status(409).json({ error: "already_guessed" });
+
+  if (!reveal) {
+    // Wrong guess — no penalty per §10 (additive, never punitive).
+    return res.json({ correct: false });
+  }
+  await prisma.huntReveal.update({
+    where: { id: reveal.id },
+    data: { identifiedByEmployees: { push: u.id } },
+  });
+  await prisma.pointsLedger.create({
+    data: {
+      userId: u.id,
+      sourceType: "hunt_reveal",
+      sourceRefId: reveal.id,
+      points: 10,
+      reason: "Correct Hunt guess",
+    },
+  });
+  await notify(prisma, u.id, "hunt_guess_correct", "Correct Hunt guess!", "+10 points", "/recognition");
+  res.json({ correct: true, points: 10 });
+});
+
 export default router;

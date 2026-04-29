@@ -393,6 +393,37 @@ model HuntCampaign {
   reveals     HuntReveal[]
 }
 
+model TrainingModule {
+  id                 String   @id @default(uuid())
+  code               String   @unique
+  name               String
+  description        String?
+  url                String?
+  durationMinutes    Int?
+  rubricSectionMatch String?
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  assignments        TrainingAssignment[]
+}
+
+model TrainingAssignment {
+  id               String   @id @default(uuid())
+  userId           String
+  trainingModuleId String
+  trainingModule   TrainingModule @relation(fields: [trainingModuleId], references: [id])
+  shopId           String?
+  status           String   @default("assigned")
+  triggerSection   String?
+  triggerScorePct  Float?
+  assignedAt       DateTime @default(now())
+  completedAt      DateTime?
+  verifiedAt       DateTime?
+  retestShopId     String?
+
+  @@index([userId, status])
+}
+
 model CalibrationSession {
   id        String   @id @default(uuid())
   name      String

@@ -14,6 +14,87 @@ interface Leaderboard {
   mostImproved: { userId: string; fullName: string; delta: number } | null;
 }
 
+interface ActiveHunt {
+  id: string;
+  name: string;
+  description: string | null;
+  startsAt: string;
+  endsAt: string;
+}
+
+interface ShopRow {
+  id: string;
+  shopDate: string;
+  type: string;
+}
+
+function HuntGuess({ hunts }: { hunts: ActiveHunt[] }) {
+  const [campaignId, setCampaignId] = useState(hunts[0]?.id ?? "");
+  const [shops, setShops] = useState<ShopRow[]>([]);
+  const [shopId, setShopId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  useEffect(() => {
+    api<{ shops: ShopRow[] }>("/shops?limit=15").then((r) => setShops(r.shops));
+  }, []);
+
+  async function guess() {
+    if (!campaignId || !shopId) return;
+    setBusy(true);
+    setResult(null);
+    try {
+      const r = await api<{ correct: boolean; points?: number }>(
+        `/hunt/campaigns/${campaignId}/guess`,
+        { method: "POST", body: JSON.stringify({ shopId }) },
+      );
+      setResult(r.correct ? `Correct! +${r.points} points.` : "Not this one — but no penalty.");
+      setShopId("");
+    } catch (e) {
+      const apiErr = e as { body?: { error?: string } };
+      if (apiErr.body?.error === "already_guessed") {
+        setResult("You've already submitted a guess for this campaign.");
+      } else {
+        setResult("Could not register guess.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="card border-stine-100 border-2 space-y-3">
+      <div>
+        <h2 className="font-medium">The Hunt — guess which shop</h2>
+        <p className="text-sm text-slate-500">
+          A mystery shopper ran scenario shops. If you can spot the one that recognized you for delivering the standard, you earn 10 bonus points (one guess per campaign).
+        </p>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <select className="input" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
+          {hunts.map((h) => (
+            <option key={h.id} value={h.id}>{h.name}</option>
+          ))}
+        </select>
+        <select className="input md:col-span-2" value={shopId} onChange={(e) => setShopId(e.target.value)}>
+          <option value="">— pick a recent shop —</option>
+          {shops.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.shopDate.slice(0, 10)} · {s.type}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex items-center gap-2">
+        <button className="btn-primary" disabled={busy || !campaignId || !shopId} onClick={guess}>
+          Submit guess
+        </button>
+        {result && <span className="text-sm text-slate-600">{result}</span>}
+      </div>
+    </div>
+  );
+}
+
 const SOURCE_LABEL: Record<string, string> = {
   shop_score: "Shop score",
   manager_bonus: "Manager bonus",
@@ -27,12 +108,14 @@ export default function Gamification() {
   const { user } = useAuth();
   const [me, setMe] = useState<MyData | null>(null);
   const [board, setBoard] = useState<Leaderboard | null>(null);
+  const [hunts, setHunts] = useState<ActiveHunt[]>([]);
   const [scope, setScope] = useState<"store" | "district" | "company">(
     user?.role === "admin" ? "company" : user?.role === "district_manager" ? "district" : "store",
   );
 
   useEffect(() => {
     api<MyData>("/gamification/me").then(setMe);
+    api<{ campaigns: ActiveHunt[] }>("/hunt/active").then((r) => setHunts(r.campaigns));
   }, []);
 
   useEffect(() => {
@@ -108,6 +191,10 @@ export default function Gamification() {
           </div>
         )}
       </div>
+
+      {user?.role === "employee" && hunts.length > 0 && (
+        <HuntGuess hunts={hunts} />
+      )}
 
       <div className="card">
         <h2 className="font-medium mb-2">My recent points</h2>

@@ -94,6 +94,13 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Microlearning loop (§6.9)** — `TrainingModule` registry; on review-complete, sections scoring below 70% auto-assign the matching module (matched by section name). 5 unit tests cover the threshold, double-assign guard, and missing-module skip.
+- **Hunt employee guessing (§6.5)** — employees can guess which past shop was a Hunt; correct guesses earn 10 points (no penalty for wrong guesses, per §10). One guess per campaign per employee, enforced server-side.
+- **Manager weekly digest (§8)** — scheduler now generates an in-app digest notification once a week per store manager: shop count + average, queue size, open appeals, open action plans.
+- **End-to-end lifecycle test** — supertest exercises shop submit → review → action plan → acknowledge → appeal → resolve, asserting on the in-memory state after each step. 50 vitest tests total.
+
+## Earlier additions
+
 - **Scheduled jobs** — runs every hour: action plans past their due date flip to `overdue` (notifying employee + manager), 3-day reminders go out once per plan, and attachments past `retentionUntil` are deleted from disk + the `audioFileId` pointer cleared. Disable in tests via `SCHEDULER_DISABLED=1`. Manual trigger at `POST /admin/jobs/run`.
 - **Calibration check (§13)** — admin creates a calibration session; reviewers submit independent scores; `summarizeCalibration()` computes per-shop deltas and an average. Pass/fail UI badge applies the §13 8-point threshold.
 - **AI sentiment** — the AI summary now includes `sentiment` (positive/neutral/negative). Surfaced as a colored badge on the shop detail; lets managers prioritize negative narratives per spec §6.9.
