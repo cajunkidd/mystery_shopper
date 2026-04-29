@@ -421,3 +421,68 @@ A district manager logs in on a Monday morning. The weekly digest already told t
 That's the full loop the platform is built to deliver.
 
 ---
+
+## 6. Feature attribution — what came from where
+
+This platform was derived from competitive research across eight mystery shopping platforms plus gamification design literature. The list below is **explicit attribution** for which feature was inspired by which company or source. Where the spec already names the source, the attribution comes straight from §16 and §10 of `STINE_MYSTERY_SHOP_APP_SPEC.md`.
+
+### 6.1 By company / source
+
+| Source | Features inspired by this source |
+|---|---|
+| **Shopmetrics CX** | Action Management workflow (action plans tied to rubric sections); Appeals pattern (private until resolved, with escalation); Action-Bar-style "Needs your attention" manager queue |
+| **Checker Software** | Workflow centralization (one queue, one home for every shop); AI-powered reporting (theme clustering, comment summarization); role-based access model (Employee / Store Manager / District Manager / Admin) |
+| **FieldPie** | Multi-location evaluation patterns (14 locations across districts, location-as-first-class entity); mobile-first capture for the employee view |
+| **SmartSpotter** | KPI dashboards backed by photo / audio / video evidence; per-question attachment requirements |
+| **hyperspace GmbH** | Closed-loop philosophy (target → measure → coach → re-test); "developmental, not punitive" tone throughout the UI; ROI metrics — repeat defect rate, time to remediate, quarter-over-quarter improvement |
+| **Secret Shopper** | AI sentiment scoring & keyword extraction; multiple shop types (visit / call / web inquiry / social inquiry) |
+| **GoAudits** | Performance management cycle (target → measure → root-cause → action → coach); cross-system intelligence (mystery shop scores joined to BisTrack sales / AOV / conversion) |
+| **Inspectly360** | Conditional logic in the rubric builder ("if Q4 = No, then Q5 comment required"); mandatory attachment requirements at the question level |
+| **INPROVE** | "The Hunt" gamification mechanic — codeword scenarios, reveal visit, public recognition (adapted for §6.5 of the spec) |
+| **Moonstar / Mobexpert** | League system with promotion / demotion at quarter end |
+| **Disney** ("electronic whip" 2008 — cautionary) | Anti-pattern: never show bottom-of-pack rankings publicly. Drives the rule that public displays show only top 3 + most-improved. |
+| **Lattice** (research) | Anti-pattern: never expire badges or points. Drives the append-only `PointsLedger` and permanent `UserBadge` design. |
+| **SHRM, Harvard Business Review, Enigmatic Events** (research) | Gamification failure modes: don't replace existing rewards, don't let one metric be gamed, don't build for novelty, don't gamify to substitute for pay. Drives §10 anti-patterns. |
+| **Stine Contract Manager** (internal) | Architecture, auth, layout shell, API conventions, deploy pipeline, and the Anthropic API wrapper used for AI features |
+
+### 6.2 Quick reference — which feature came from which company
+
+| Feature in this app | Inspired by |
+|---|---|
+| Action plans tied to rubric sections | Shopmetrics CX |
+| Private appeals with escalation path | Shopmetrics CX |
+| "Needs your attention" manager queue | Shopmetrics CX |
+| Centralized review workflow / single queue | Checker Software |
+| Role-based permissions matrix | Checker Software |
+| AI theme clustering & comment summarization | Checker Software + Secret Shopper |
+| Mobile-first employee view | FieldPie |
+| Multi-location / district roll-up | FieldPie |
+| Photo / audio / video attachment requirements | SmartSpotter + Inspectly360 |
+| KPI dashboards with evidence drill-in | SmartSpotter |
+| Closed-loop coaching (re-test against original action plan) | hyperspace GmbH |
+| Developmental (non-punitive) UI tone | hyperspace GmbH |
+| ROI metrics: repeat defect rate, time to remediate, QoQ improvement | hyperspace GmbH |
+| Sentiment scoring on narratives | Secret Shopper |
+| Multiple shop types: visit / call / web / social | Secret Shopper |
+| Cross-system intelligence (shop scores ↔ BisTrack sales) | GoAudits |
+| Performance management cycle wording | GoAudits |
+| Rubric conditional logic builder | Inspectly360 |
+| Per-question mandatory attachments | Inspectly360 |
+| The Hunt campaign mechanic | INPROVE |
+| Leagues with promotion / demotion | Moonstar / Mobexpert |
+| Top-3 + most-improved (no bottom-of-pack) public displays | Disney "electronic whip" cautionary tale |
+| Permanent badges, append-only points ledger | Lattice research |
+| Anti-pattern guardrails in §10 of the spec | SHRM / HBR / Enigmatic Events |
+| Auth, layout, deploy pipeline, AI wrapper | Stine Contract Manager (internal) |
+
+### 6.3 Things that are deliberately *not* borrowed
+
+A few features common in competitor platforms were intentionally left out — see §14 of the spec:
+
+- **GPS verification / geofencing** (relevant only to in-house shopper models — Stine outsources)
+- **Multi-language UI** (single-language deployment)
+- **Customer-facing CX surveys** (separate product class)
+- **E-commerce mystery shopping** (no meaningful e-commerce traffic at the store level)
+- **Replacement of HR performance review systems** (this app *informs* performance reviews, doesn't *become* them)
+- **Mystery shopper recruiting / scheduling** (the agency handles this)
+
