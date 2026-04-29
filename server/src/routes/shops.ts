@@ -24,6 +24,16 @@ function buildShopWhere(user: NonNullable<Express.Request["user"]>, query: Recor
     if (query.to) range.lte = new Date(String(query.to));
     where.shopDate = range;
   }
+  // Free-text search across employee fullName and shopperName. Case-insensitive,
+  // contains-match. Skipped when blank.
+  const q = (query.q as string | undefined)?.trim();
+  if (q) {
+    where.OR = [
+      { evaluatedEmployee: { fullName: { contains: q, mode: "insensitive" } } },
+      { shopperName: { contains: q, mode: "insensitive" } },
+      { shopperExternalRef: { contains: q, mode: "insensitive" } },
+    ];
+  }
 
   if (user.role === "admin") return where;
   if (user.role === "district_manager") {

@@ -54,7 +54,29 @@ export function buildApp(): express.Express {
   // Trust proxy in deploy environments (X-Forwarded-For from a load balancer);
   // disabled in tests so express-rate-limit doesn't complain about the loopback.
   if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // CSP: SPA + API + same-origin blob/data URLs for downloaded attachments
+  // and PDFs. No third-party scripts; the SPA is served from the same origin
+  // by nginx in docker, and Vite dev needs HMR (eased in dev only).
+  const isDev = process.env.NODE_ENV !== "production";
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: isDev ? ["'self'", "'unsafe-inline'", "'unsafe-eval'"] : ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"], // Tailwind injects inline style attributes
+          imgSrc: ["'self'", "data:", "blob:"],
+          mediaSrc: ["'self'", "blob:"],
+          connectSrc: ["'self'", ...(isDev ? ["ws:", "http://localhost:4000"] : [])],
+          fontSrc: ["'self'", "data:"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          frameAncestors: ["'none'"],
+        },
+      },
+      crossOriginResourcePolicy: { policy: "same-origin" },
+    }),
+  );
   app.use(cors({ origin: process.env.CLIENT_ORIGIN ?? "http://localhost:5173", credentials: true }));
   // Skip compression for the audio/PDF stream endpoints — they're already
   // compressed binary and double-compressing wastes CPU.

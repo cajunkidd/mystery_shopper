@@ -19,6 +19,7 @@ interface FilterState {
   type: string;
   from: string;
   to: string;
+  q: string;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -34,7 +35,7 @@ const PAGE_SIZE = 50;
 
 export default function ShopList() {
   const [shops, setShops] = useState<ShopRow[] | null>(null);
-  const [filters, setFilters] = useState<FilterState>({ status: "", type: "", from: "", to: "" });
+  const [filters, setFilters] = useState<FilterState>({ status: "", type: "", from: "", to: "", q: "" });
   const [pages, setPages] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -44,6 +45,7 @@ export default function ShopList() {
     if (filters.type) params.set("type", filters.type);
     if (filters.from) params.set("from", new Date(filters.from).toISOString());
     if (filters.to) params.set("to", new Date(filters.to).toISOString());
+    if (filters.q.trim()) params.set("q", filters.q.trim());
     return params;
   }, [filters]);
 
@@ -78,6 +80,16 @@ export default function ShopList() {
         </Link>
       </div>
       <div className="card flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <label className="label">Search</label>
+          <input
+            className="input"
+            type="search"
+            placeholder="Employee or shopper name, agency ref…"
+            value={filters.q}
+            onChange={(e) => setFilters({ ...filters, q: e.target.value })}
+          />
+        </div>
         <div>
           <label className="label">Status</label>
           <select className="input" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })}>
@@ -107,10 +119,10 @@ export default function ShopList() {
           <label className="label">To</label>
           <input className="input" type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} />
         </div>
-        {(filters.status || filters.type || filters.from || filters.to) && (
+        {(filters.status || filters.type || filters.from || filters.to || filters.q) && (
           <button
             className="btn-secondary text-xs"
-            onClick={() => setFilters({ status: "", type: "", from: "", to: "" })}
+            onClick={() => setFilters({ status: "", type: "", from: "", to: "", q: "" })}
           >
             Reset
           </button>
