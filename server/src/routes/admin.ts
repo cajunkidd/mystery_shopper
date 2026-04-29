@@ -165,7 +165,7 @@ router.get("/outbox", async (req, res) => {
 const configBody = z.object({ value: z.unknown() });
 router.patch("/config/:key", async (req, res) => {
   const parsed = configBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const item = await prisma.systemConfig.upsert({
     where: { key: req.params.key },
     update: { value: parsed.data.value as never, updatedBy: req.user!.id },

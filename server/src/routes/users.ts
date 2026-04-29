@@ -98,7 +98,7 @@ const patchBody = z.object({
 
 router.patch("/:id", requireRole("admin"), async (req, res) => {
   const parsed = patchBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const before = await prisma.user.findUnique({ where: { id: req.params.id } });
   const data: Record<string, unknown> = { ...parsed.data };
   if (parsed.data.password) {

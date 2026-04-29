@@ -24,14 +24,14 @@ const moduleBody = z.object({
 
 router.post("/training/modules", requireRole("admin"), async (req, res) => {
   const parsed = moduleBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const m = await prisma.trainingModule.create({ data: parsed.data });
   res.status(201).json({ module: m });
 });
 
 router.patch("/training/modules/:id", requireRole("admin"), async (req, res) => {
   const parsed = moduleBody.partial().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const m = await prisma.trainingModule.update({ where: { id: req.params.id }, data: parsed.data });
   res.json({ module: m });
 });
@@ -85,7 +85,7 @@ router.post(
   requireRole("store_manager", "district_manager", "admin"),
   async (req, res) => {
     const parsed = retestBody.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
     const original = await prisma.trainingAssignment.findUnique({ where: { id: req.params.id } });
     if (!original) return res.status(404).json({ error: "not_found" });
 

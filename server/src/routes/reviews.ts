@@ -33,7 +33,7 @@ const patchBody = z.object({
 
 router.patch("/reviews/:id", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = patchBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const data = parsed.data;
   if (data.managerScoreAdjustment != null && !data.managerScoreJustification) {
     return res.status(400).json({ error: "justification_required" });

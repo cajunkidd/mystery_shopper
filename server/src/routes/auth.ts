@@ -12,7 +12,7 @@ const loginBody = z.object({
 
 router.post("/login", async (req, res) => {
   const parsed = loginBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
   if (!user || !user.active) return res.status(401).json({ error: "invalid_credentials" });
   const ok = await verifyPassword(parsed.data.password, user.passwordHash);

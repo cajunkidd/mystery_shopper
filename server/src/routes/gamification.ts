@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
 
@@ -109,10 +110,15 @@ router.get("/badges", async (_req, res) => {
 });
 
 // Manager bonus is awarded inline via Review.bonusPointsAwarded; this endpoint covers ad-hoc bonuses.
+const managerBonusBody = z.object({
+  userId: z.string().uuid(),
+  points: z.number().int().min(1).max(25),
+  reason: z.string().min(1),
+});
 router.post("/manager-bonus", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
-  const { userId, points, reason } = req.body as { userId?: string; points?: number; reason?: string };
-  if (!userId || !points || !reason) return res.status(400).json({ error: "invalid_body" });
-  if (points <= 0 || points > 25) return res.status(400).json({ error: "out_of_range" });
+  const parsed = managerBonusBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
+  const { userId, points, reason } = parsed.data;
   const entry = await prisma.pointsLedger.create({
     data: {
       userId,

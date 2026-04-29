@@ -28,14 +28,14 @@ const upsertBody = z.object({
 
 router.post("/", requireRole("admin"), async (req, res) => {
   const parsed = upsertBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const loc = await prisma.location.create({ data: parsed.data });
   res.status(201).json({ location: loc });
 });
 
 router.patch("/:id", requireRole("admin"), async (req, res) => {
   const parsed = upsertBody.partial().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const loc = await prisma.location.update({ where: { id: req.params.id }, data: parsed.data });
   res.json({ location: loc });
 });

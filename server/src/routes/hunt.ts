@@ -36,7 +36,7 @@ const createBody = z.object({
 
 router.post("/hunt/campaigns", requireRole("admin"), async (req, res) => {
   const parsed = createBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const c = await prisma.huntCampaign.create({
     data: {
       name: parsed.data.name,
@@ -64,7 +64,7 @@ const revealBody = z.object({
 
 router.post("/hunt/campaigns/:id/reveal", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = revealBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const campaign = await prisma.huntCampaign.findUnique({ where: { id: req.params.id } });
   if (!campaign) return res.status(404).json({ error: "campaign_not_found" });
 
@@ -110,7 +110,7 @@ router.post("/hunt/campaigns/:id/guess", async (req, res) => {
   const u = req.user!;
   if (u.role !== "employee") return res.status(403).json({ error: "forbidden" });
   const parsed = guessBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const reveal = await prisma.huntReveal.findFirst({
     where: { huntCampaignId: req.params.id, shopId: parsed.data.shopId },

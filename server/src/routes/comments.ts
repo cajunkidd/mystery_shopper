@@ -13,7 +13,7 @@ const body = z.object({
 
 router.post("/shops/:id/comments", async (req, res) => {
   const parsed = body.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const c = await prisma.comment.create({
     data: {
       shopId: req.params.id,
@@ -27,7 +27,7 @@ router.post("/shops/:id/comments", async (req, res) => {
 
 router.post("/action-plans/:id/comments", async (req, res) => {
   const parsed = body.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const c = await prisma.comment.create({
     data: { actionPlanId: req.params.id, authorId: req.user!.id, body: parsed.data.body },
   });
@@ -36,7 +36,7 @@ router.post("/action-plans/:id/comments", async (req, res) => {
 
 router.post("/appeals/:id/comments", async (req, res) => {
   const parsed = body.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const c = await prisma.comment.create({
     data: { appealId: req.params.id, authorId: req.user!.id, body: parsed.data.body },
   });

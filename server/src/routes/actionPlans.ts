@@ -18,7 +18,7 @@ const createBody = z.object({
 // POST /shops/:id/action-plans
 router.post("/shops/:id/action-plans", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = createBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const ap = await prisma.actionPlan.create({
     data: {
       shopId: req.params.id,
@@ -96,7 +96,7 @@ router.post(
   requireRole("store_manager", "district_manager", "admin"),
   async (req, res) => {
     const parsed = bulkReassignBody.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
     const target = await prisma.user.findUnique({ where: { id: parsed.data.toUserId } });
     if (!target || !target.active) return res.status(400).json({ error: "invalid_target" });
     const result = await prisma.actionPlan.updateMany({
@@ -127,7 +127,7 @@ router.post(
   requireRole("store_manager", "district_manager", "admin"),
   async (req, res) => {
     const parsed = bulkVerifyBody.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
     const result = await prisma.actionPlan.updateMany({
       where: { id: { in: parsed.data.ids }, status: "completed" },
       data: { status: "verified", verifiedAt: new Date() },
@@ -139,7 +139,7 @@ router.post(
 const verifyBody = z.object({ verificationNotes: z.string().optional() });
 router.post("/action-plans/:id/verify", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = verifyBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const updated = await prisma.actionPlan.update({
     where: { id: req.params.id },
     data: { status: "verified", verifiedAt: new Date(), verificationNotes: parsed.data.verificationNotes },

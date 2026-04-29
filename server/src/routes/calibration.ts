@@ -22,7 +22,7 @@ const createBody = z.object({
 
 router.post("/calibration", requireRole("admin"), async (req, res) => {
   const parsed = createBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const session = await prisma.calibrationSession.create({
     data: { ...parsed.data, createdById: req.user!.id },
   });
@@ -47,7 +47,7 @@ const submitBody = z.object({
 
 router.post("/calibration/:id/entries", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = submitBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const entry = await prisma.calibrationEntry.upsert({
     where: {
       sessionId_shopId_reviewerId: {

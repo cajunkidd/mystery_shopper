@@ -112,7 +112,7 @@ router.patch("/:id", requireRole("admin"), async (req, res) => {
   if (!rubric) return res.status(404).json({ error: "not_found" });
   if (rubric.status !== "draft") return res.status(409).json({ error: "rubric_locked" });
   const parsed = createBody.partial().safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   // For simplicity: if sections are passed, replace them entirely.
   if (parsed.data.sections) {
     const { sectionMax, total } = maxFromSections(parsed.data.sections);

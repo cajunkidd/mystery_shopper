@@ -14,7 +14,7 @@ const fileBody = z.object({
 
 router.post("/shops/:id/appeals", async (req, res) => {
   const parsed = fileBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const shop = await prisma.shop.findUnique({ where: { id: req.params.id } });
   if (!shop) return res.status(404).json({ error: "shop_not_found" });
   if (shop.evaluatedEmployeeId !== req.user!.id) return res.status(403).json({ error: "forbidden" });
@@ -57,7 +57,7 @@ const resolveBody = z.object({
 
 router.post("/appeals/:id/resolve", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = resolveBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const before = await prisma.appeal.findUnique({ where: { id: req.params.id } });
   const appeal = await prisma.appeal.update({
     where: { id: req.params.id },

@@ -137,7 +137,7 @@ const userImportSchema = z.object({
 
 router.post("/imports/users", requireRole("admin"), async (req, res) => {
   const parsed = userImportSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const { rows, mapping } = parsed.data;
   const created: { email: string; tempPassword: string }[] = [];
   const errors: { row: number; reason: string }[] = [];

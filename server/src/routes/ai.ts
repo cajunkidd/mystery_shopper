@@ -82,7 +82,7 @@ const bulkBody = z.object({ shopIds: z.array(z.string().uuid()).min(1).max(10) }
 
 router.post("/shops/bulk-summary", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
   const parsed = bulkBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
 
   const shops = await prisma.shop.findMany({
     where: { id: { in: parsed.data.shopIds } },

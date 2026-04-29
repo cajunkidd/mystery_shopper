@@ -27,7 +27,7 @@ const prefsBody = z.object({
 
 router.patch("/me/preferences", async (req, res) => {
   const parsed = prefsBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const user = await prisma.user.update({
     where: { id: req.user!.id },
     data: parsed.data,

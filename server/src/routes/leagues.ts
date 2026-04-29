@@ -21,7 +21,7 @@ const upsertLeague = z.object({
 
 router.post("/leagues", requireRole("admin"), async (req, res) => {
   const parsed = upsertLeague.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const league = await prisma.league.create({
     data: {
       name: parsed.data.name,
@@ -92,7 +92,7 @@ const challengeBody = z.object({
 
 router.post("/challenges", requireRole("admin"), async (req, res) => {
   const parsed = challengeBody.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body", details: parsed.error.flatten() });
   const c = await prisma.challenge.create({
     data: {
       name: parsed.data.name,
