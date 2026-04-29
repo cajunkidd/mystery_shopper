@@ -340,3 +340,84 @@ Before enabling gamification at any location, run a **calibration check**:
 This protects employees from competing against reviewer noise instead of their own actual performance.
 
 ---
+
+## 5. Phase 4 — Advanced analytics & cross-system intelligence
+
+Phase 4 connects mystery shop data to operational data and adds AI-assisted analysis on top of the scorecard. All AI calls go through the same Anthropic API wrapper used by Contract Manager, on the most current Claude Sonnet at time of build.
+
+### 5.1 Per-shop AI comment summary
+
+On any shop detail page, click **Summarize comments** to generate a 2–3 sentence summary of the shopper's open-text narrative plus any per-question comments.
+
+Use it when a shopper writes a long, rambling narrative and you need the gist before a coaching session. The summary is stored against the shop so you don't pay for the same call twice; regenerate it if the narrative changes.
+
+### 5.2 Theme clustering across a quarter
+
+On any store, employee, or category dashboard, click **Identify themes**. The platform looks across all shops in the selected scope for the quarter and returns the **top 3 recurring themes** in plain language — for example:
+
+> 1. "Greeters often miss product handoff to a sales associate."
+> 2. "Phone reps are unclear on delivery cutoff times."
+> 3. "Closing the sale is consistently the strongest section."
+
+You can drill from any theme into the underlying shops to see the raw evidence.
+
+### 5.3 Sentiment scoring & priority flagging
+
+Narratives and per-question comments are scored for sentiment in the background. Anything flagged **negative** surfaces in the manager's **"Needs your attention"** queue with a sentiment indicator, so the manager can prioritize which reviews to handle first.
+
+Sentiment is advisory, not a score input — it never feeds the points engine. Its only job is to help the manager triage.
+
+### 5.4 Microlearning loop (low score → training → re-test)
+
+When an action plan is created against a `RubricSection`, the platform can attach a **training module** by setting `training_module_id` on the action plan. The flow:
+
+1. Manager creates an action plan in category "Product Knowledge" because the employee scored low.
+2. The system suggests a matching training module.
+3. The employee acknowledges the action plan, completes the training, and the module records completion.
+4. The next mystery shop in that category becomes the **re-test**. Score delta is tracked back to the original action plan.
+
+This closes the loop: low score → assigned training → measurable re-test.
+
+### 5.5 BisTrack integration & cross-system intelligence
+
+The platform pulls daily, read-only data from BisTrack (using Stine's existing pipeline — not a new one):
+
+- Daily sales by location
+- Average Order Value (AOV) by location and date
+- Conversion (transactions / foot traffic) where available
+
+With that data joined to mystery shop scores, the **Cross-System Intelligence** dashboard surfaces correlations like:
+
+> Stores with **product-knowledge scores < 70%** show **12% lower AOV** than stores at 85%+.
+
+Click any insight to see the underlying stores, the time window, and the raw scatter. These are the ROI metrics that justify the program: **repeat defect rate**, **time to remediate**, and **quarter-over-quarter improvement** are all built into the same dashboard.
+
+### 5.6 Agency import pipeline
+
+Phase 1 was manual entry only. Phase 4 adds a generic import pipeline that maps incoming fields to the `Shop` and `ShopAnswer` schema. Three intake formats:
+
+- **CSV** — drop a file onto **Admin → Imports → New Import**, map the columns to rubric questions in the mapping UI, preview, then commit.
+- **Email + PDF attachment** — emails sent to a designated import address have their PDF parsed by the Anthropic API (same pattern as Contract Manager's contract summary), with the parsed fields surfaced in the same mapping UI for human approval before commit.
+- **API webhook** — for the rare agency that offers one. Build per-agency endpoints only as needed.
+
+Field mappings are saved per agency, so subsequent imports from the same source are one click.
+
+### 5.7 Scheduled email digests
+
+Managers and district managers can subscribe to a **weekly digest** email:
+
+- New shops this week
+- Open action plans for the team (with overdue flagged)
+- Top issue category for the week
+- Appeal volume and any escalations
+- League standing update (if gamification is enabled)
+
+Subscribe / unsubscribe from **Settings → Notifications**. SMS notifications (opt-in) are also available from Phase 2 onward.
+
+### 5.8 What this looks like end-to-end
+
+A district manager logs in on a Monday morning. The weekly digest already told them which store to look at. They open the heat-map, click the cell where Sulphur × Product Knowledge is red, and the underlying shops list comes up sorted by negative sentiment. They click **Identify themes** and see "Phone reps are unclear on delivery cutoff times" as theme #1. They drill into the calls, listen to two of them with the time-anchored comments their store managers already left, and assign a microlearning module on delivery policy as a district-wide action plan. Two weeks later, the cross-system intelligence dashboard shows the same stores' AOV ticking back up.
+
+That's the full loop the platform is built to deliver.
+
+---
