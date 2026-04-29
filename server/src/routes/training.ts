@@ -78,4 +78,19 @@ router.post(
   },
 );
 
+const retestBody = z.object({ retestShopId: z.string().uuid() });
+router.post(
+  "/training/assignments/:id/retest",
+  requireRole("store_manager", "district_manager", "admin"),
+  async (req, res) => {
+    const parsed = retestBody.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+    const updated = await prisma.trainingAssignment.update({
+      where: { id: req.params.id },
+      data: { retestShopId: parsed.data.retestShopId },
+    });
+    res.json({ assignment: updated });
+  },
+);
+
 export default router;

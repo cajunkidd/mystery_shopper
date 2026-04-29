@@ -19,6 +19,7 @@ import AuditLog from "./pages/admin/AuditLog";
 import CsvImport from "./pages/admin/CsvImport";
 import GamificationAdmin from "./pages/admin/Gamification";
 import { CalibrationList, CalibrationDetail } from "./pages/admin/Calibration";
+import TrainingModules from "./pages/admin/TrainingModules";
 
 function Require({ roles, children }: { roles?: Role[]; children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -107,6 +108,14 @@ export default function App() {
           element={
             <Require roles={["admin"]}>
               <GamificationAdmin />
+            </Require>
+          }
+        />
+        <Route
+          path="admin/training"
+          element={
+            <Require roles={["admin"]}>
+              <TrainingModules />
             </Require>
           }
         />

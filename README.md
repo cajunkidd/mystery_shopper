@@ -94,6 +94,14 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Training-module admin UI** — `/admin/training`: create, edit, activate/deactivate training modules. The `rubricSectionMatch` field is what auto-assignment keys off.
+- **Retest linking** — managers can link a follow-up shop to a verified or completed training assignment from the Training page; the assignment then renders a "retest →" link to the new shop.
+- **Bulk user CSV import** — Users page has a "+ Bulk import users from CSV" expandable. Each row's temporary password is returned in-memory only (never persisted in plain) so the admin can hand it out and rotate.
+- **Calibration shop picker** — Calibration detail now offers a select-from-list instead of typing UUIDs.
+- **Shop list filters** — date range (`from`/`to`), status, and type filters surfaced in the UI; backend already supported them.
+
+## Earlier additions
+
 - **Microlearning loop (§6.9)** — `TrainingModule` registry; on review-complete, sections scoring below 70% auto-assign the matching module (matched by section name). 5 unit tests cover the threshold, double-assign guard, and missing-module skip.
 - **Hunt employee guessing (§6.5)** — employees can guess which past shop was a Hunt; correct guesses earn 10 points (no penalty for wrong guesses, per §10). One guess per campaign per employee, enforced server-side.
 - **Manager weekly digest (§8)** — scheduler now generates an in-app digest notification once a week per store manager: shop count + average, queue size, open appeals, open action plans.

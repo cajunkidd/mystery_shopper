@@ -9,8 +9,10 @@ interface Assignment {
   triggerSection: string | null;
   triggerScorePct: number | null;
   shopId: string | null;
+  retestShopId: string | null;
   assignedAt: string;
   completedAt: string | null;
+  userId: string;
   trainingModule: {
     id: string;
     code: string;
@@ -19,6 +21,13 @@ interface Assignment {
     url: string | null;
     durationMinutes: number | null;
   };
+}
+
+interface ShopOption {
+  id: string;
+  shopDate: string;
+  type: string;
+  evaluatedEmployee: { id: string; fullName: string } | null;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -111,12 +120,76 @@ export default function Training() {
                       Verify
                     </button>
                   )}
+                  {(a.status === "completed" || a.status === "verified") && canVerify && !a.retestShopId && (
+                    <RetestPicker assignment={a} onLinked={load} />
+                  )}
+                  {a.retestShopId && (
+                    <Link to={`/shops/${a.retestShopId}`} className="text-xs text-stine-600 hover:underline">
+                      retest →
+                    </Link>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function RetestPicker({ assignment, onLinked }: { assignment: Assignment; onLinked: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [shops, setShops] = useState<ShopOption[]>([]);
+  const [shopId, setShopId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const since = new Date(assignment.assignedAt).toISOString();
+    api<{ shops: ShopOption[] }>(
+      `/shops?evaluatedEmployeeId=${assignment.userId}&from=${encodeURIComponent(since)}`,
+    ).then((r) => setShops(r.shops));
+  }, [open, assignment]);
+
+  async function link() {
+    if (!shopId) return;
+    setBusy(true);
+    try {
+      await api(`/training/assignments/${assignment.id}/retest`, {
+        method: "POST",
+        body: JSON.stringify({ retestShopId: shopId }),
+      });
+      onLinked();
+    } finally {
+      setBusy(false);
+      setOpen(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button className="btn-secondary text-xs" onClick={() => setOpen(true)}>
+        Link retest
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <select className="input text-xs py-1" value={shopId} onChange={(e) => setShopId(e.target.value)}>
+        <option value="">— pick a follow-up shop —</option>
+        {shops.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.shopDate.slice(0, 10)} · {s.type}
+          </option>
+        ))}
+      </select>
+      <button className="btn-primary text-xs" disabled={!shopId || busy} onClick={link}>
+        Link
+      </button>
+      <button className="text-xs text-slate-500" onClick={() => setOpen(false)}>
+        cancel
+      </button>
     </div>
   );
 }

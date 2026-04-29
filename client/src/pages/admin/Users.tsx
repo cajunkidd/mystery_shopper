@@ -62,10 +62,13 @@ export default function Users() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Users</h1>
-        <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Cancel" : "New user"}
-        </button>
+        <div className="space-x-2">
+          <button className="btn-primary" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? "Cancel" : "New user"}
+          </button>
+        </div>
       </div>
+      <BulkUserImport onDone={load} />
       {showForm && (
         <form onSubmit={create} className="card grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
@@ -128,6 +131,121 @@ export default function Users() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuotes) {
+      if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') inQuotes = false;
+      else cur += c;
+    } else {
+      if (c === ",") { out.push(cur); cur = ""; }
+      else if (c === '"') inQuotes = true;
+      else cur += c;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function BulkUserImport({ onDone }: { onDone: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ created: { email: string; tempPassword: string }[]; errors: { row: number; reason: string }[] } | null>(null);
+
+  async function handleFile(file: File) {
+    setBusy(true);
+    setResult(null);
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        setResult({ created: [], errors: [{ row: 0, reason: "no rows" }] });
+        return;
+      }
+      const headers = parseCsvLine(lines[0]).map((h) => h.trim());
+      const rows: Record<string, string>[] = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const row: Record<string, string> = {};
+        headers.forEach((h, j) => {
+          row[h] = cols[j] ?? "";
+        });
+        rows.push(row);
+      }
+      // Heuristic mapping: assume header names match the API.
+      const mapping = {
+        email: headers.find((h) => /email/i.test(h)) ?? "email",
+        fullName: headers.find((h) => /name/i.test(h)) ?? "fullName",
+        role: headers.find((h) => /role/i.test(h)) ?? "role",
+        locationCode: headers.find((h) => /location/i.test(h)),
+      };
+      const r = await api<{ created: { email: string; tempPassword: string }[]; errors: { row: number; reason: string }[] }>(
+        "/imports/users",
+        { method: "POST", body: JSON.stringify({ rows, mapping }) },
+      );
+      setResult(r);
+      onDone();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button className="text-sm text-stine-600 hover:underline" onClick={() => setOpen(true)}>
+        + Bulk import users from CSV
+      </button>
+    );
+  }
+  return (
+    <div className="card space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium">Bulk user import</h3>
+        <button className="text-xs text-slate-500" onClick={() => setOpen(false)}>close</button>
+      </div>
+      <p className="text-xs text-slate-500">
+        CSV columns: <span className="font-mono">email</span>, <span className="font-mono">fullName</span>,{" "}
+        <span className="font-mono">role</span> (employee | store_manager | district_manager | admin), and optional{" "}
+        <span className="font-mono">locationCode</span>. Each user gets a temporary password — record them now and rotate after first login.
+      </p>
+      <input
+        type="file"
+        accept=".csv,text/csv"
+        disabled={busy}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFile(f);
+        }}
+      />
+      {busy && <p className="text-sm text-slate-500">Importing…</p>}
+      {result && (
+        <div className="text-sm space-y-2">
+          <p>Created {result.created.length} user(s).</p>
+          {result.created.length > 0 && (
+            <table className="w-full text-xs font-mono">
+              <thead className="text-slate-500"><tr><th className="text-left">Email</th><th className="text-left">Temporary password</th></tr></thead>
+              <tbody>
+                {result.created.map((c) => (
+                  <tr key={c.email}><td>{c.email}</td><td>{c.tempPassword}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {result.errors.length > 0 && (
+            <ul className="text-xs text-rose-700 list-disc list-inside">
+              {result.errors.map((e, i) => <li key={i}>Row {e.row}: {e.reason}</li>)}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

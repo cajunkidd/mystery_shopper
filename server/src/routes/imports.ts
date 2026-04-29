@@ -2,10 +2,11 @@ import { Router } from "express";
 import { parse } from "csv-parse/sync";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireAuth, requireRole } from "../auth.js";
+import { requireAuth, requireRole, hashPassword } from "../auth.js";
 import { computeShopTotals } from "../scoring.js";
 import { upload } from "../uploads.js";
 import fs from "node:fs";
+import crypto from "node:crypto";
 import { uploadPath } from "../uploads.js";
 
 const router = Router();
@@ -118,6 +119,74 @@ router.post("/imports/commit", requireRole("admin"), async (req, res) => {
     }
   }
   res.json({ created: created.length, errors });
+});
+
+// Bulk user import (HR onboarding). Expects columns: email, fullName, role,
+// locationCode (optional). Creates users with a temporary password that is
+// returned to the admin so they can hand it out (rotate on first login).
+const userImportSchema = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())),
+  mapping: z.object({
+    email: z.string(),
+    fullName: z.string(),
+    role: z.string(),
+    locationCode: z.string().optional(),
+  }),
+});
+
+router.post("/imports/users", requireRole("admin"), async (req, res) => {
+  const parsed = userImportSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "invalid_body" });
+  const { rows, mapping } = parsed.data;
+  const created: { email: string; tempPassword: string }[] = [];
+  const errors: { row: number; reason: string }[] = [];
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i] as Record<string, unknown>;
+    try {
+      const email = String(r[mapping.email] ?? "").trim().toLowerCase();
+      const fullName = String(r[mapping.fullName] ?? "").trim();
+      const role = String(r[mapping.role] ?? "").trim().toLowerCase();
+      if (!email || !fullName || !role) {
+        errors.push({ row: i + 1, reason: "missing required fields" });
+        continue;
+      }
+      if (!["employee", "store_manager", "district_manager", "admin"].includes(role)) {
+        errors.push({ row: i + 1, reason: `invalid role: ${role}` });
+        continue;
+      }
+      const exists = await prisma.user.findUnique({ where: { email } });
+      if (exists) {
+        errors.push({ row: i + 1, reason: `email already exists: ${email}` });
+        continue;
+      }
+      let primaryLocationId: string | null = null;
+      if (mapping.locationCode) {
+        const code = String(r[mapping.locationCode] ?? "").trim();
+        if (code) {
+          const loc = await prisma.location.findUnique({ where: { code } });
+          if (!loc) {
+            errors.push({ row: i + 1, reason: `unknown location code: ${code}` });
+            continue;
+          }
+          primaryLocationId = loc.id;
+        }
+      }
+      const tempPassword = crypto.randomBytes(9).toString("base64url");
+      await prisma.user.create({
+        data: {
+          email,
+          fullName,
+          role: role as "employee" | "store_manager" | "district_manager" | "admin",
+          passwordHash: await hashPassword(tempPassword),
+          primaryLocationId,
+        },
+      });
+      created.push({ email, tempPassword });
+    } catch (e) {
+      errors.push({ row: i + 1, reason: (e as Error).message });
+    }
+  }
+  res.json({ created, errors });
 });
 
 export default router;

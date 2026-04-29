@@ -17,6 +17,12 @@ function buildShopWhere(user: NonNullable<Express.Request["user"]>, query: Recor
   if (query.status) where.status = query.status;
   if (query.type) where.type = query.type;
   if (query.evaluatedEmployeeId) where.evaluatedEmployeeId = query.evaluatedEmployeeId;
+  if (query.from || query.to) {
+    const range: Record<string, Date> = {};
+    if (query.from) range.gte = new Date(String(query.from));
+    if (query.to) range.lte = new Date(String(query.to));
+    where.shopDate = range;
+  }
 
   if (user.role === "admin") return where;
   if (user.role === "district_manager") {

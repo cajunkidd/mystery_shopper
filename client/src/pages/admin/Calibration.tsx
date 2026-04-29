@@ -21,6 +21,13 @@ interface Stats {
   averageDelta: number;
   passes: boolean;
 }
+interface ShopOption {
+  id: string;
+  shopDate: string;
+  type: string;
+  evaluatedEmployee: { fullName: string } | null;
+  location: { name: string };
+}
 
 export function CalibrationList() {
   const [sessions, setSessions] = useState<Session[] | null>(null);
@@ -81,12 +88,17 @@ export function CalibrationDetail() {
   const [shopId, setShopId] = useState("");
   const [score, setScore] = useState("");
   const [busy, setBusy] = useState(false);
+  const [shopOptions, setShopOptions] = useState<ShopOption[]>([]);
 
   function load() {
     if (!id) return;
     api<{ session: Session & { entries: Entry[] }; stats: Stats }>(`/calibration/${id}`).then(setData);
   }
   useEffect(load, [id]);
+
+  useEffect(() => {
+    api<{ shops: ShopOption[] }>("/shops?limit=50").then((r) => setShopOptions(r.shops));
+  }, []);
 
   async function submit() {
     if (!id || !shopId || !score) return;
@@ -114,7 +126,15 @@ export function CalibrationDetail() {
       <div className="card space-y-2">
         <h3 className="font-medium">Submit your score</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-          <input className="input" placeholder="Shop ID" value={shopId} onChange={(e) => setShopId(e.target.value)} />
+          <select className="input" value={shopId} onChange={(e) => setShopId(e.target.value)}>
+            <option value="">— pick a shop —</option>
+            {shopOptions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.shopDate.slice(0, 10)} · {s.location.name} · {s.type}
+                {s.evaluatedEmployee ? ` · ${s.evaluatedEmployee.fullName}` : ""}
+              </option>
+            ))}
+          </select>
           <input
             className="input"
             type="number"
