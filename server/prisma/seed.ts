@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { ensureBadgesSeeded } from "../src/badges.js";
 
 const prisma = new PrismaClient();
 
@@ -210,6 +211,9 @@ async function main() {
     });
     console.log("  - call rubric");
   }
+
+  await ensureBadgesSeeded(prisma);
+  console.log("  - badges seeded");
 
   console.log("Done. Test login: kyle@stine.test / admin1234");
 }

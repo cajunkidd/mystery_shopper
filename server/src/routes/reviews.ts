@@ -2,6 +2,9 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
+import { awardForCompletedShop } from "../points.js";
+import { evaluateBadgesForUser } from "../badges.js";
+import { notify } from "../notifications.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -44,8 +47,12 @@ router.patch("/reviews/:id", requireRole("store_manager", "district_manager", "a
 });
 
 router.post("/reviews/:id/complete", requireRole("store_manager", "district_manager", "admin"), async (req, res) => {
-  const review = await prisma.review.findUnique({ where: { id: req.params.id } });
+  const review = await prisma.review.findUnique({
+    where: { id: req.params.id },
+    include: { shop: true },
+  });
   if (!review) return res.status(404).json({ error: "not_found" });
+
   await prisma.$transaction([
     prisma.review.update({
       where: { id: review.id },
@@ -56,7 +63,42 @@ router.post("/reviews/:id/complete", requireRole("store_manager", "district_mana
       data: { status: "action_assigned", closedAt: new Date() },
     }),
   ]);
-  res.json({ ok: true });
+
+  // Phase 3: award points + evaluate badges, but only when an employee is being evaluated.
+  let breakdown: { sourceType: string; points: number; reason: string }[] = [];
+  let earnedBadges: string[] = [];
+  if (review.shop.evaluatedEmployeeId) {
+    breakdown = await awardForCompletedShop(prisma, {
+      userId: review.shop.evaluatedEmployeeId,
+      shopId: review.shop.id,
+      shopType: review.shop.type,
+      percentage: review.shop.percentage,
+      bonusPointsAwarded: review.bonusPointsAwarded,
+      bonusJustification: review.bonusJustification,
+      awardedById: review.reviewerId,
+    });
+    earnedBadges = await evaluateBadgesForUser(prisma, review.shop.evaluatedEmployeeId, {
+      id: review.shop.id,
+      type: review.shop.type,
+      percentage: review.shop.percentage,
+      shopDate: review.shop.shopDate,
+    });
+
+    // Notify the employee that their review is complete.
+    await notify(
+      prisma,
+      review.shop.evaluatedEmployeeId,
+      "review_completed",
+      `Your shop on ${review.shop.shopDate.toISOString().slice(0, 10)} has been reviewed`,
+      `Score: ${review.shop.percentage.toFixed(0)}%`,
+      `/shops/${review.shop.id}`,
+    );
+    for (const code of earnedBadges) {
+      await notify(prisma, review.shop.evaluatedEmployeeId, "badge_earned", `New badge: ${code}`, undefined, `/me/badges`);
+    }
+  }
+
+  res.json({ ok: true, breakdown, earnedBadges });
 });
 
 export default router;

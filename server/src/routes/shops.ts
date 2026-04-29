@@ -4,6 +4,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "../db.js";
 import { requireAuth } from "../auth.js";
 import { computeShopTotals } from "../scoring.js";
+import { notify } from "../notifications.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -151,6 +152,14 @@ router.post("/", async (req, res) => {
         data: { shopId: shop.id, reviewerId: manager.id, status: "pending" },
       });
       await prisma.shop.update({ where: { id: shop.id }, data: { status: "under_review" } });
+      await notify(
+        prisma,
+        manager.id,
+        "shop_submitted",
+        "New shop needs your review",
+        `${data.type} on ${new Date(data.shopDate).toISOString().slice(0, 10)}`,
+        `/shops/${shop.id}`,
+      );
     }
   }
 

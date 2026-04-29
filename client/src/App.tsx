@@ -8,6 +8,8 @@ import ShopWizard from "./pages/ShopWizard";
 import ShopDetail from "./pages/ShopDetail";
 import ActionPlans from "./pages/ActionPlans";
 import Appeals from "./pages/Appeals";
+import Gamification from "./pages/Gamification";
+import HeatmapPage from "./pages/Heatmap";
 import Rubrics from "./pages/admin/Rubrics";
 import RubricEditor from "./pages/admin/RubricEditor";
 import Users from "./pages/admin/Users";
@@ -44,6 +46,15 @@ export default function App() {
         <Route path="shops/:id" element={<ShopDetail />} />
         <Route path="action-plans" element={<ActionPlans />} />
         <Route path="appeals" element={<Appeals />} />
+        <Route path="recognition" element={<Gamification />} />
+        <Route
+          path="heatmap"
+          element={
+            <Require roles={["store_manager", "district_manager", "admin"]}>
+              <HeatmapPage />
+            </Require>
+          }
+        />
         <Route
           path="admin/rubrics"
           element={

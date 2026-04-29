@@ -10,6 +10,9 @@ import actionPlanRoutes from "./routes/actionPlans.js";
 import appealRoutes from "./routes/appeals.js";
 import commentRoutes from "./routes/comments.js";
 import dashboardRoutes from "./routes/dashboards.js";
+import attachmentRoutes from "./routes/attachments.js";
+import gamificationRoutes from "./routes/gamification.js";
+import notificationRoutes from "./routes/notifications.js";
 
 const app = express();
 
@@ -27,7 +30,10 @@ app.use("/api/v1", reviewRoutes);
 app.use("/api/v1", actionPlanRoutes);
 app.use("/api/v1", appealRoutes);
 app.use("/api/v1", commentRoutes);
+app.use("/api/v1", attachmentRoutes);
 app.use("/api/v1/dashboards", dashboardRoutes);
+app.use("/api/v1/gamification", gamificationRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);

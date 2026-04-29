@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, downloadPdf } from "../api";
 import { useAuth } from "../auth";
+import { AudioReview, AudioUpload } from "../components/AudioReview";
 
 interface Shop {
   id: string;
@@ -15,10 +16,12 @@ interface Shop {
   shopperName: string | null;
   evaluatedEmployeeId: string | null;
   locationId: string;
+  audioFileId: string | null;
   location: { name: string; code: string };
   evaluatedEmployee: { id: string; fullName: string } | null;
   createdBy: { fullName: string };
   answers: { id: string; questionId: string; answerValue: unknown; scoreAwarded: number; comment: string | null }[];
+  comments: { id: string; body: string; createdAt: string; audioTimestampSeconds: number | null; author: { fullName: string } }[];
   review: {
     id: string;
     status: string;
@@ -39,7 +42,6 @@ interface Shop {
     assignedTo: { id: string; fullName: string };
   }[];
   appeals: { id: string; reason: string; status: string; resolutionNotes: string | null }[];
-  comments: { id: string; body: string; createdAt: string; author: { fullName: string } }[];
   rubric: {
     id: string;
     name: string;
@@ -198,6 +200,36 @@ export default function ShopDetail() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {shop.type === "call" && (
+        <div className="card">
+          <h3 className="font-medium mb-2">Audio recording</h3>
+          {!shop.audioFileId ? (
+            canReview ? (
+              <AudioUpload
+                shopId={shop.id}
+                onUploaded={async () => {
+                  const r = await api<{ shop: Shop }>(`/shops/${shop.id}`);
+                  setShop(r.shop);
+                }}
+              />
+            ) : (
+              <p className="text-sm text-slate-500">No recording uploaded yet.</p>
+            )
+          ) : (
+            <AudioReview
+              shopId={shop.id}
+              attachmentId={shop.audioFileId}
+              comments={shop.comments}
+              canComment={canReview}
+              onChange={async () => {
+                const r = await api<{ shop: Shop }>(`/shops/${shop.id}`);
+                setShop(r.shop);
+              }}
+            />
+          )}
         </div>
       )}
 

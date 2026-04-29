@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth, type Role } from "../auth";
+import { NotificationBell } from "./NotificationBell";
 
 interface NavItem {
   to: string;
@@ -13,6 +14,8 @@ const NAV: NavItem[] = [
   { to: "/shops/new", label: "Enter Shop", roles: ["store_manager", "district_manager", "admin"] },
   { to: "/action-plans", label: "Action Plans", roles: ["employee", "store_manager", "district_manager", "admin"] },
   { to: "/appeals", label: "Appeals", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/recognition", label: "Recognition", roles: ["employee", "store_manager", "district_manager", "admin"] },
+  { to: "/heatmap", label: "Heatmap", roles: ["store_manager", "district_manager", "admin"] },
   { to: "/admin/rubrics", label: "Rubrics", roles: ["admin"] },
   { to: "/admin/users", label: "Users", roles: ["admin"] },
 ];
@@ -44,6 +47,7 @@ export default function Layout() {
             ))}
           </nav>
           <div className="text-sm flex items-center gap-3">
+            <NotificationBell />
             <span className="hidden sm:inline opacity-90">
               {user.fullName} <span className="opacity-70">({user.role})</span>
             </span>

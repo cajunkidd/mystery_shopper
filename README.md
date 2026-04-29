@@ -2,7 +2,7 @@
 
 Internal app for managing mystery shop and mystery caller evaluations across Stine LLC's 14 locations. See `STINE_MYSTERY_SHOP_APP_SPEC.md` for the authoritative build spec.
 
-This is the **Phase 1 (MVP) vertical slice** — auth, rubric authoring, manual shop entry, manager review, action plans, appeals, employee dashboard, and PDF export.
+**Status:** Phase 1 MVP plus Phase 2 audio review and the Phase 3 gamification core (points engine, badges, leaderboard, notifications, heatmap).
 
 ## Stack
 
@@ -76,14 +76,26 @@ The Vite dev server proxies `/api` to `http://localhost:4000`.
 5. Manager resolves the appeal under **Appeals**.
 6. **Export PDF** from any shop detail page.
 
-## What's intentionally not here yet
+## What's now implemented (beyond Phase 1)
 
-- **Phase 2** — audio review for mystery callers
-- **Phase 3** — gamification (points engine, badges, leagues, Hunt mechanic). Schema is in place; routes are not.
-- **Phase 4** — agency CSV import, BisTrack integration, Anthropic-powered comment summarization
-- Email / SMS notifications (the spec calls for them; this slice surfaces everything in-app only)
-- Drag-and-drop in the rubric editor (basic add/remove only)
-- File / photo / audio attachments
+- **Attachments** — multer-backed file upload + retrieval, with role gating (employees can only access caller audio after manager release, per §6.7).
+- **Phase 2 audio review** — caller shops have an audio upload + waveform-style player with click-to-seek time-anchored comments.
+- **Phase 3 points engine** — runs on review-complete: `shop_score × type-multiplier × streak-bonus`, plus improvement bonus, plus manager bonus. Append-only ledger (§10 anti-pattern: no mutation).
+- **Phase 3 badges** — Veteran / Centurion / Phone Pro / Comeback Kid / Bounce Back, evaluated on review-complete and permanent.
+- **Leaderboard** — top 3 + most-improved only (no bottom-of-pack rankings, per §10).
+- **Notifications** — in-app bell with unread counter; triggers wired for shop submitted, review completed, action plan assigned, badge earned.
+- **Heatmap** — locations × rubric sections, color-coded; filterable by shop type. Available to managers and above.
+- **District dashboard endpoint** — roll-up across stores in a district with open-appeal counter.
+- **Unit tests** — `npm run test` exercises the scoring engine and points engine (17 tests covering yes/no, scale, multi-choice, streak bonus capping, improvement threshold, manager bonus).
+
+## What's still intentionally not here
+
+- **Phase 3b** — "The Hunt" mechanic (schema is in place, no UI/routes yet).
+- **Phase 3** — leagues + challenges (schema is in place; promotions/demotions logic deferred until baseline data exists).
+- **Phase 4** — agency CSV import, BisTrack integration, Anthropic-powered comment summarization.
+- **Email / SMS** — spec calls for them; this slice is in-app only.
+- **Rubric drag-and-drop** — basic add/remove only.
+- **Photo/video evidence on shop answers** — attachments support exists but the wizard UI doesn't surface per-question uploads yet.
 
 ## Open spec questions (from §15) deferred
 

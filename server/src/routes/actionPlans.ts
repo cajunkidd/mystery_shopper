@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
+import { notify } from "../notifications.js";
 
 const router = Router();
 router.use(requireAuth);
@@ -29,6 +30,14 @@ router.post("/shops/:id/action-plans", requireRole("store_manager", "district_ma
       dueDate: new Date(parsed.data.dueDate),
     },
   });
+  await notify(
+    prisma,
+    parsed.data.assignedToId,
+    "action_plan_assigned",
+    `New action plan: ${parsed.data.category}`,
+    parsed.data.description,
+    `/action-plans`,
+  );
   res.status(201).json({ actionPlan: ap });
 });
 
