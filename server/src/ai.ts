@@ -27,6 +27,7 @@ export interface ShopSummary {
   summary: string;
   strengths: string[];
   improvements: string[];
+  sentiment: "positive" | "neutral" | "negative";
 }
 
 export async function summarizeShop(shop: ShopForSummary): Promise<ShopSummary> {
@@ -58,8 +59,9 @@ export async function summarizeShop(shop: ShopForSummary): Promise<ShopSummary> 
             summary: { type: "string" },
             strengths: { type: "array", items: { type: "string" } },
             improvements: { type: "array", items: { type: "string" } },
+            sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
           },
-          required: ["summary", "strengths", "improvements"],
+          required: ["summary", "strengths", "improvements", "sentiment"],
           additionalProperties: false,
         },
       },

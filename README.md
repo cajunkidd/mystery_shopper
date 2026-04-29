@@ -94,6 +94,13 @@ Beyond `DATABASE_URL` and `JWT_SECRET`, set `ANTHROPIC_API_KEY` to enable the AI
 
 ## Latest additions
 
+- **Scheduled jobs** — runs every hour: action plans past their due date flip to `overdue` (notifying employee + manager), 3-day reminders go out once per plan, and attachments past `retentionUntil` are deleted from disk + the `audioFileId` pointer cleared. Disable in tests via `SCHEDULER_DISABLED=1`. Manual trigger at `POST /admin/jobs/run`.
+- **Calibration check (§13)** — admin creates a calibration session; reviewers submit independent scores; `summarizeCalibration()` computes per-shop deltas and an average. Pass/fail UI badge applies the §13 8-point threshold.
+- **AI sentiment** — the AI summary now includes `sentiment` (positive/neutral/negative). Surfaced as a colored badge on the shop detail; lets managers prioritize negative narratives per spec §6.9.
+- **Integration tests** — supertest exercises the live Express stack with the prisma client mocked. Covers token validation, role gating on `/admin/audit-log`, and rejection of deactivated users. 38 tests total.
+
+## Earlier additions
+
 - **Conditional logic** — rubric questions can carry `{ requireCommentIf: <value> }` or `{ requireCommentIfIn: [...] }`. Wizard validates client-side; the API revalidates on submit and returns `400 conditional_logic_failed`.
 - **Per-question photo attachments** — managers can attach photos to individual rubric answers from the shop detail page; thumbnails render inline.
 - **Hunt mechanic (§6.5)** — admin can create a Hunt campaign window with scenarios; managers record reveals, which award 50 hunt-reveal points + notify the recognized employee.

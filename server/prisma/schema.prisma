@@ -393,6 +393,29 @@ model HuntCampaign {
   reveals     HuntReveal[]
 }
 
+model CalibrationSession {
+  id        String   @id @default(uuid())
+  name      String
+  notes     String?
+  createdById String
+  createdAt DateTime @default(now())
+
+  entries   CalibrationEntry[]
+}
+
+model CalibrationEntry {
+  id                  String   @id @default(uuid())
+  sessionId           String
+  session             CalibrationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shopId              String
+  reviewerId          String
+  scorePercentage     Float
+  notes               String?
+  submittedAt         DateTime @default(now())
+
+  @@unique([sessionId, shopId, reviewerId])
+}
+
 model HuntReveal {
   id                       String   @id @default(uuid())
   huntCampaignId           String

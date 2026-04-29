@@ -381,14 +381,14 @@ function AnswerAttachments({
 
 function AISummaryPanel({ shopId }: { shopId: string }) {
   const [busy, setBusy] = useState(false);
-  const [summary, setSummary] = useState<{ summary: string; strengths: string[]; improvements: string[] } | null>(null);
+  const [summary, setSummary] = useState<{ summary: string; strengths: string[]; improvements: string[]; sentiment: "positive" | "neutral" | "negative" } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function generate() {
     setBusy(true);
     setError(null);
     try {
-      const r = await api<{ summary: { summary: string; strengths: string[]; improvements: string[] } }>(
+      const r = await api<{ summary: { summary: string; strengths: string[]; improvements: string[]; sentiment: "positive" | "neutral" | "negative" } }>(
         `/shops/${shopId}/summary`,
         { method: "POST", body: JSON.stringify({}) },
       );
@@ -416,6 +416,17 @@ function AISummaryPanel({ shopId }: { shopId: string }) {
       {error && <p className="text-sm text-rose-600 mt-2">{error}</p>}
       {summary && (
         <div className="mt-3 space-y-3 text-sm">
+          <div>
+            <span className={`badge ${
+              summary.sentiment === "positive"
+                ? "bg-emerald-100 text-emerald-800"
+                : summary.sentiment === "negative"
+                ? "bg-rose-100 text-rose-800"
+                : "bg-slate-100 text-slate-700"
+            }`}>
+              sentiment: {summary.sentiment}
+            </span>
+          </div>
           <p className="whitespace-pre-wrap">{summary.summary}</p>
           {summary.strengths.length > 0 && (
             <div>

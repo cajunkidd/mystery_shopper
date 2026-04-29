@@ -20,6 +20,7 @@ const NAV: NavItem[] = [
   { to: "/admin/users", label: "Users", roles: ["admin"] },
   { to: "/admin/import", label: "Import", roles: ["admin"] },
   { to: "/admin/gamification", label: "Game", roles: ["admin"] },
+  { to: "/admin/calibration", label: "Calibration", roles: ["admin", "district_manager"] },
   { to: "/admin/audit-log", label: "Audit", roles: ["admin"] },
 ];
 

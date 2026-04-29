@@ -2,9 +2,15 @@ import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAuth, requireRole } from "../auth.js";
+import { runJobs } from "../jobs.js";
 
 const router = Router();
 router.use(requireAuth, requireRole("admin"));
+
+router.post("/jobs/run", async (_req, res) => {
+  const result = await runJobs();
+  res.json({ result });
+});
 
 router.get("/audit-log", async (req, res) => {
   const where: Record<string, unknown> = {};

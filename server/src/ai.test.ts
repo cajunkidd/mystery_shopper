@@ -18,7 +18,10 @@ describe("summarizeShop", () => {
     process.env.ANTHROPIC_API_KEY = "test-key";
     messagesCreate.mockResolvedValue({
       content: [
-        { type: "text", text: JSON.stringify({ summary: "ok", strengths: [], improvements: [] }) },
+        {
+          type: "text",
+          text: JSON.stringify({ summary: "ok", strengths: [], improvements: [], sentiment: "neutral" }),
+        },
       ],
     });
     const { summarizeShop } = await import("./ai.js");
@@ -38,6 +41,8 @@ describe("summarizeShop", () => {
     // Adaptive thinking, structured outputs, sensible model.
     expect(call.thinking).toEqual({ type: "adaptive" });
     expect(call.output_config.format.type).toBe("json_schema");
+    // §6.9: sentiment is a required output field for negative-narrative flagging.
+    expect(call.output_config.format.schema.required).toContain("sentiment");
     expect(call.model).toMatch(/^claude-/);
     // The user message contains the per-shop (volatile) content — must come AFTER
     // the cache breakpoint or the cache will never be reused.
